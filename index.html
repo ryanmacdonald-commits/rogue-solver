@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rogue Solver">
+<meta name="theme-color" content="#eaeef1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090d10" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2214%22 fill=%22%23c2410c%22/%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%227%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%223%22/%3E%3C/svg%3E">
+<title>Carbon Rogue Solver</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#eaeef1; --card:#ffffff; --card-2:#f4f7f9; --rule:#d5dce2; --rule-2:#b9c4cd;
+  --ink:#0f1519; --ink-2:#4a555e; --ink-3:#7d8791;
+  --accent:#c2410c; --accent-soft:#c2410c12;
+  --good:#0f7a52; --warn:#b45309; --bad:#b91c1c;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Roboto Mono",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  --shadow:0 1px 2px #0f151910, 0 4px 14px #0f15190a;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#090d10; --card:#141a1f; --card-2:#1b222a; --rule:#242d35; --rule-2:#33404a;
+    --ink:#eef3f6; --ink-2:#a2adb6; --ink-3:#6d7780;
+    --accent:#fb923c; --accent-soft:#fb923c1a;
+    --good:#34d399; --warn:#fbbf24; --bad:#f87171;
+    --shadow:0 1px 2px #0008, 0 6px 20px #0006;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#090d10; --card:#141a1f; --card-2:#1b222a; --rule:#242d35; --rule-2:#33404a;
+  --ink:#eef3f6; --ink-2:#a2adb6; --ink-3:#6d7780;
+  --accent:#fb923c; --accent-soft:#fb923c1a;
+  --good:#34d399; --warn:#fbbf24; --bad:#f87171;
+  --shadow:0 1px 2px #0008, 0 6px 20px #0006;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+body{margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.45}
+.app{max-width:520px; margin:0 auto; padding-inline:16px; padding-block:14px 40px}
+.num{font-family:var(--mono); font-variant-numeric:tabular-nums}
+
+/* header */
+.top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px}
+.top h1{margin:0; font-size:17px; font-weight:700; letter-spacing:-.01em}
+.top .sub{font-family:var(--mono); font-size:10.5px; color:var(--ink-3);
+  letter-spacing:.06em; text-transform:uppercase; margin-top:1px}
+.ghost{background:var(--card); border:1px solid var(--rule); color:var(--ink-2);
+  border-radius:8px; padding:8px 12px; font-family:var(--mono); font-size:11px;
+  font-weight:600; letter-spacing:.06em; text-transform:uppercase; cursor:pointer}
+.ghost:active{background:var(--card-2)}
+
+/* conditions strip */
+.cond{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--rule);
+  border:1px solid var(--rule); border-radius:10px; overflow:hidden; margin-bottom:14px;
+  cursor:pointer}
+.cond > div{background:var(--card); padding:8px 6px; text-align:center}
+.cond dt{font-family:var(--mono); font-size:8.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 2px}
+.cond dd{margin:0; font-family:var(--mono); font-size:14px; font-weight:600;
+  font-variant-numeric:tabular-nums}
+
+/* range input */
+.rangebox{background:var(--card); border:1px solid var(--rule); border-radius:12px;
+  padding:14px 16px 16px; box-shadow:var(--shadow); margin-bottom:12px}
+.rangebox label{display:block; font-family:var(--mono); font-size:10px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:6px}
+.rangerow{display:flex; align-items:center; gap:10px}
+#yds{flex:1 1 auto; width:100%; min-width:0; background:var(--card-2); color:var(--ink);
+  border:1.5px solid var(--rule-2); border-radius:10px; padding:10px 14px;
+  font-family:var(--mono); font-size:34px; font-weight:700; text-align:center;
+  font-variant-numeric:tabular-nums; -moz-appearance:textfield}
+#yds::-webkit-outer-spin-button,#yds::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+#yds:focus{outline:none; border-color:var(--accent)}
+.step{flex:0 0 auto; width:46px; height:46px; border-radius:10px; border:1px solid var(--rule-2);
+  background:var(--card-2); color:var(--ink); font-size:22px; font-weight:600; cursor:pointer}
+.step:active{background:var(--rule)}
+
+/* result */
+.result{background:var(--card); border:1.5px solid var(--accent); border-radius:12px;
+  overflow:hidden; box-shadow:var(--shadow); margin-bottom:12px}
+.hero{padding:16px; text-align:center; background:var(--accent-soft)}
+.hero .k{font-family:var(--mono); font-size:10px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); margin-bottom:2px}
+.hero .v{font-family:var(--mono); font-size:56px; font-weight:700; line-height:1;
+  letter-spacing:-.03em; color:var(--accent); font-variant-numeric:tabular-nums}
+.hero .n{font-family:var(--mono); font-size:13px; color:var(--ink-2); margin-top:7px}
+.rev{display:inline-block; margin-top:8px; padding:4px 12px; border-radius:999px;
+  font-family:var(--mono); font-size:12px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; border:1.5px solid var(--accent); color:var(--accent)}
+.rev.two{background:var(--accent); color:#fff}
+.live{display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--good);
+  margin-right:5px; vertical-align:middle}
+.wxrow{display:flex; gap:8px; margin-bottom:10px}
+.wxrow input{flex:1 1 auto; min-width:0}
+.hit{width:100%; text-align:left; background:var(--card-2); border:1px solid var(--rule-2);
+  border-radius:8px; padding:9px 11px; margin-bottom:6px; color:var(--ink);
+  font-size:14px; cursor:pointer}
+.hit:active{background:var(--rule)}
+.locline{display:flex; align-items:center; gap:8px; padding:9px 11px; border:1px solid var(--rule-2);
+  border-radius:8px; margin-bottom:6px; background:var(--card-2)}
+.locline.on{border-color:var(--accent); background:var(--accent-soft)}
+.locline .nm{flex:1 1 auto; font-size:14px; font-weight:600; cursor:pointer}
+.locline .alt{font-family:var(--mono); font-size:12px; color:var(--ink-3)}
+.locline .x{flex:0 0 auto; background:none; border:0; color:var(--ink-3); font-size:18px;
+  cursor:pointer; padding:0 4px}
+.status{font-size:12.5px; color:var(--ink-3); line-height:1.4; margin-top:8px}
+.status.err{color:var(--bad)}
+.sub2{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--rule);
+  border-top:1px solid var(--rule)}
+.sub2 > div{background:var(--card); padding:10px 12px; text-align:center}
+.sub2 .k{font-family:var(--mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); margin-bottom:2px}
+.sub2 .v{font-family:var(--mono); font-size:20px; font-weight:600; font-variant-numeric:tabular-nums}
+
+.strip{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule);
+  border:1px solid var(--rule); border-radius:10px; overflow:hidden; margin-bottom:12px}
+.strip > div{background:var(--card); padding:9px 6px; text-align:center}
+.strip .k{font-family:var(--mono); font-size:8.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-3); margin-bottom:2px}
+.strip .v{font-family:var(--mono); font-size:15px; font-weight:600; font-variant-numeric:tabular-nums}
+
+.flags{margin-bottom:14px; display:flex; flex-direction:column; gap:7px}
+.flag{border-radius:9px; padding:9px 12px; font-size:13.5px; line-height:1.35;
+  border:1px solid var(--rule); background:var(--card)}
+.flag b{font-weight:600}
+.flag.warn{border-left:3px solid var(--warn)}
+.flag.bad{border-left:3px solid var(--bad)}
+.flag.ok{border-left:3px solid var(--good)}
+
+/* wind row */
+.windrow{display:flex; align-items:center; gap:10px; background:var(--card);
+  border:1px solid var(--rule); border-radius:10px; padding:10px 12px; margin-bottom:12px}
+.windrow label{font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3); flex:0 0 auto}
+.windrow input{flex:1 1 auto; min-width:0; width:100%; background:var(--card-2); color:var(--ink);
+  border:1px solid var(--rule-2); border-radius:8px; padding:7px 10px;
+  font-family:var(--mono); font-size:17px; font-weight:600; text-align:center}
+.windrow input:focus{outline:none; border-color:var(--accent)}
+
+/* sheets */
+.sheet{background:var(--card); border:1px solid var(--rule); border-radius:12px;
+  padding:14px 16px 16px; margin-bottom:12px; box-shadow:var(--shadow)}
+.sheet h2{margin:0 0 3px; font-size:14px; font-weight:700}
+.sheet p.hint{margin:0 0 12px; font-size:12.5px; color:var(--ink-3); line-height:1.4}
+.field{margin-bottom:11px}
+.field label{display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:4px}
+.field input,.field select{width:100%; background:var(--card-2); color:var(--ink);
+  border:1px solid var(--rule-2); border-radius:8px; padding:9px 11px;
+  font-family:var(--mono); font-size:16px; font-variant-numeric:tabular-nums}
+.field input:focus,.field select:focus{outline:none; border-color:var(--accent)}
+.two{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.seg{display:flex; gap:1px; background:var(--rule); border:1px solid var(--rule);
+  border-radius:8px; overflow:hidden; margin-bottom:11px}
+.seg button{flex:1; background:var(--card); border:0; color:var(--ink-2); padding:9px 6px;
+  font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.05em;
+  text-transform:uppercase; cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent); color:#fff}
+.btn{width:100%; background:var(--accent); color:#fff; border:0; border-radius:9px;
+  padding:11px; font-family:var(--mono); font-size:12px; font-weight:700; letter-spacing:.08em;
+  text-transform:uppercase; cursor:pointer; margin-top:4px}
+.btn.sec{background:var(--card-2); color:var(--ink-2); border:1px solid var(--rule-2)}
+.btnrow{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px}
+.note{font-size:12px; color:var(--ink-3); margin-top:9px; line-height:1.4}
+[hidden]{display:none !important}
+
+/* weather readout + update bar (PWA build) */
+.subh{font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3); margin:22px 0 8px; font-weight:600}
+.wxout{background:var(--card-2); border:1px solid var(--rule); border-radius:12px;
+  padding:12px 14px; margin:2px 0 4px}
+.wxhead{font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--accent);
+  margin-bottom:8px; word-break:break-word}
+.wxline{display:flex; justify-content:space-between; gap:12px; padding:3px 0;
+  font-size:13px; align-items:baseline}
+.wxline .k{color:var(--ink-3); flex:0 0 auto}
+.wxline .v{font-family:var(--mono); color:var(--ink); text-align:right;
+  word-break:break-word; min-width:0}
+#updBar{position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom));
+  z-index:90; background:var(--accent); color:#fff; border-radius:12px; padding:12px 14px;
+  font-size:14px; display:flex; justify-content:space-between; align-items:center; gap:12px;
+  box-shadow:var(--shadow)}
+#updBar button{background:#fff2; color:#fff; border:1px solid #fff5; border-radius:8px;
+  padding:6px 12px; font:inherit; font-weight:600; cursor:pointer}
+</style>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+<meta name="description" content="7mm PRC Carbon Rogue ballistic solver - CDS dial yardage from live conditions, works offline.">
+</head>
+<body>
+<div id="updBar" hidden>
+  <span>New version ready.</span>
+  <button type="button" onclick="location.reload()">Reload</button>
+</div>
+
+
+<div class="app">
+
+  <div class="top">
+    <div>
+      <h1 id="loadName">160 gr LRX · 65.40 gr</h1>
+      <div class="sub" id="loadSub">2945 fps · BC 0.608 · ¼ MOA</div>
+      <div class="sub" style="color:var(--accent)">Offline build · manual conditions</div>
+    </div>
+    <div style="display:flex; gap:7px">
+      <button class="ghost" id="btnWx" type="button" hidden>Wx</button>
+      <button class="ghost" id="btnLoads" type="button">Loads</button>
+    </div>
+  </div>
+
+  <dl class="cond" id="condStrip" role="button" tabindex="0" aria-label="Edit conditions">
+    <div><dt>Temp</dt><dd id="cTemp">—</dd></div>
+    <div><dt>Press</dt><dd id="cPress">—</dd></div>
+    <div><dt>Hum</dt><dd id="cHum">—</dd></div>
+    <div><dt>Alt</dt><dd id="cAlt">—</dd></div>
+  </dl>
+
+  <div class="rangebox">
+    <label for="yds">Range from your rangefinder — yards</label>
+    <div class="rangerow">
+      <button class="step" id="minus" type="button" aria-label="Down 25 yards">−</button>
+      <input id="yds" type="number" inputmode="numeric" value="400" min="25" max="1400" step="5">
+      <button class="step" id="plus" type="button" aria-label="Up 25 yards">+</button>
+    </div>
+  </div>
+
+  <div class="result">
+    <div class="hero">
+      <div class="k">Set dial to — yards</div>
+      <div class="v" id="dialYds">—</div>
+      <div id="revWrap"><span class="rev" id="rev">—</span></div>
+      <div class="n" id="moa">—</div>
+    </div>
+    <div class="sub2">
+      <div><div class="k">Wind hold</div><div class="v" id="windClicks">—</div></div>
+      <div><div class="k">Wind MOA</div><div class="v" id="windMoa">—</div></div>
+    </div>
+  </div>
+
+  <div class="windrow">
+    <label for="wind">Wind mph</label>
+    <input id="wind" type="number" inputmode="numeric" value="10" min="0" max="40" step="1">
+    <label style="flex:0 0 auto">full value</label>
+  </div>
+
+  <div class="strip">
+    <div><div class="k">Velocity</div><div class="v" id="vel">—</div></div>
+    <div><div class="k">Energy</div><div class="v" id="energy">—</div></div>
+    <div><div class="k">Flight</div><div class="v" id="tof">—</div></div>
+  </div>
+
+  <div class="flags" id="flags"></div>
+
+  <!-- conditions sheet -->
+  <div class="sheet" id="sheetCond" hidden>
+    <h2>Conditions</h2>
+    <p class="hint">Enter what your Kestrel or phone says. Everything is saved on this device.</p>
+    <div class="seg" role="group" aria-label="Pressure source">
+      <button type="button" id="modeAlt" aria-pressed="true">Altitude</button>
+      <button type="button" id="modeStn" aria-pressed="false">Station press.</button>
+    </div>
+    <p class="hint" id="modeHint">Pressure derived from altitude using the standard atmosphere. Use this
+      unless you have a real barometer reading.</p>
+    <div class="two">
+      <div class="field">
+        <label for="fTemp">Temperature °F</label>
+        <input id="fTemp" type="number" inputmode="decimal" step="1">
+      </div>
+      <div class="field">
+        <label for="fHum">Humidity %</label>
+        <input id="fHum" type="number" inputmode="numeric" min="0" max="100" step="5">
+      </div>
+    </div>
+    <div class="field" id="wrapAlt">
+      <label for="fAlt">Altitude — feet</label>
+      <input id="fAlt" type="number" inputmode="numeric" step="50">
+    </div>
+    <div class="field" id="wrapStn" hidden>
+      <label for="fStn">Station pressure — inHg (absolute, not sea-level)</label>
+      <input id="fStn" type="number" inputmode="decimal" step="0.01">
+    </div>
+    <div class="btnrow">
+      <button class="btn sec" type="button" id="btnGeo">Use my location</button>
+      <button class="btn" type="button" id="btnCondDone">Done</button>
+    </div>
+    <p class="note" id="geoNote"></p>
+  </div>
+
+  <!-- weather sheet -->
+  <div class="sheet" id="sheetWx" hidden>
+    <h2>Live weather</h2>
+    <p class="hint">Tap <b>Weather here now</b> — it reads your GPS, pulls conditions for that exact
+      spot, and loads them into the solver. No place name, no account. Saved places are for checking
+      somewhere you aren't: DeBolt from the kitchen table.</p>
+    <div class="btnrow">
+      <button class="btn" type="button" id="btnHere">Weather here now</button>
+    </div>
+    <p class="status" id="wxStatus"></p>
+    <div id="wxOut" class="wxout" hidden></div>
+
+    <h3 class="subh">Saved places</h3>
+    <div id="locList"></div>
+    <div class="wxrow">
+      <input id="wxQuery" type="text" placeholder="Search a town…" autocomplete="off">
+      <button class="btn sec" type="button" id="btnWxSearch" style="width:auto; margin:0; padding:9px 14px">Find</button>
+    </div>
+    <div id="wxHits"></div>
+    <div class="btnrow">
+      <button class="btn sec" type="button" id="btnNearest">Nearest to me</button>
+      <button class="btn" type="button" id="btnFetch">Fetch saved place</button>
+    </div>
+    <p class="note">Sea-level pressure is converted to true station pressure using that place's
+      altitude before it reaches the solver. Search fills altitude from terrain data — check it,
+      terrain models round off. Wind is a 10&nbsp;m model wind for the grid square, not what's at
+      your muzzle. Treat it as a starting number, never as the call.</p>
+  </div>
+
+  <!-- loads sheet -->
+  <div class="sheet" id="sheetLoads" hidden>
+    <h2>Loads</h2>
+    <p class="hint">Add a load, or edit velocity and BC as you true them against real impacts.</p>
+    <div class="field">
+      <label for="fPick">Active load</label>
+      <select id="fPick"></select>
+    </div>
+    <div class="field">
+      <label for="fName">Name</label>
+      <input id="fName" type="text">
+    </div>
+    <div class="two">
+      <div class="field"><label for="fMv">Muzzle velocity fps</label>
+        <input id="fMv" type="number" inputmode="numeric" step="5"></div>
+      <div class="field"><label for="fBc">BC (G1)</label>
+        <input id="fBc" type="number" inputmode="decimal" step="0.001"></div>
+    </div>
+    <div class="two">
+      <div class="field"><label for="fSh">Scope height in</label>
+        <input id="fSh" type="number" inputmode="decimal" step="0.05"></div>
+      <div class="field"><label for="fZero">Zero yards</label>
+        <input id="fZero" type="number" inputmode="numeric" step="25"></div>
+    </div>
+    <div class="two">
+      <div class="field"><label for="fClick">MOA per click</label>
+        <input id="fClick" type="number" inputmode="decimal" step="0.05"></div>
+      <div class="field"><label for="fRefT">Chrono temp °F</label>
+        <input id="fRefT" type="number" inputmode="numeric" step="1"></div>
+    </div>
+    <div class="two">
+      <div class="field"><label for="fK">Powder fps per °F</label>
+        <input id="fK" type="number" inputmode="decimal" step="0.1"></div>
+      <div class="field"><label for="fFloor">Expansion floor fps</label>
+        <input id="fFloor" type="number" inputmode="numeric" step="50"></div>
+    </div>
+    <p class="hint" style="margin:14px 0 8px"><b>The dial itself.</b> What your CDS was engraved for —
+      change these only if you order a new dial.</p>
+    <div class="two">
+      <div class="field"><label for="fCutT">Dial cut temp °F</label>
+        <input id="fCutT" type="number" inputmode="numeric" step="1"></div>
+      <div class="field"><label for="fCutA">Dial cut altitude ft</label>
+        <input id="fCutA" type="number" inputmode="numeric" step="50"></div>
+    </div>
+    <div class="two">
+      <div class="field"><label for="fTravel">Dial travel — MOA</label>
+        <input id="fTravel" type="number" inputmode="decimal" step="1"></div>
+      <div class="field"><label for="fRev">MOA per revolution</label>
+        <input id="fRev" type="number" inputmode="decimal" step="1"></div>
+    </div>
+    <div class="btnrow">
+      <button class="btn sec" type="button" id="btnNew">Add new</button>
+      <button class="btn" type="button" id="btnSave">Save</button>
+    </div>
+    <button class="btn sec" type="button" id="btnDel" style="margin-top:10px">Delete this load</button>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+/* ---------------- ballistics ---------------- */
+const G1=[[0,.2629],[.05,.2558],[.1,.2487],[.15,.2413],[.2,.2344],[.25,.2278],[.3,.2214],
+[.35,.2155],[.4,.2104],[.45,.2061],[.5,.2032],[.55,.202],[.6,.2034],[.7,.2165],[.725,.223],
+[.75,.2313],[.775,.2417],[.8,.2546],[.825,.2706],[.85,.2901],[.875,.3136],[.9,.3415],
+[.925,.3734],[.95,.4084],[.975,.4448],[1,.4805],[1.025,.5136],[1.05,.5427],[1.075,.5677],
+[1.1,.5883],[1.125,.6053],[1.15,.6191],[1.2,.6393],[1.25,.6518],[1.3,.6589],[1.35,.6621],
+[1.4,.6625],[1.45,.6607],[1.5,.6573],[1.55,.6528],[1.6,.6474],[1.65,.6413],[1.7,.6347],
+[1.75,.628],[1.8,.621],[1.85,.6141],[1.9,.6072],[1.95,.6003],[2,.5934],[2.05,.5867],
+[2.1,.5804],[2.15,.5743],[2.2,.5685],[2.25,.563],[2.3,.5577],[2.35,.5527],[2.4,.5481],
+[2.45,.5438],[2.5,.5397],[2.6,.5325],[2.7,.5264],[2.8,.5211],[2.9,.5168],[3,.5133]];
+function cdG1(M){
+  if(M<=G1[0][0])return G1[0][1];
+  if(M>=G1[G1.length-1][0])return G1[G1.length-1][1];
+  for(let i=0;i<G1.length-1;i++){
+    const[a,ca]=G1[i],[b,cb]=G1[i+1];
+    if(M>=a&&M<=b) return ca+(cb-ca)*(M-a)/(b-a);
+  }
+  return G1[G1.length-1][1];
+}
+const KDRAG=2.0855e-4, RHO_STD=1.22498;
+const stdPressure = ftAlt => 29.92*Math.pow(1-6.87535e-6*ftAlt,5.2559);
+
+function airState(c){
+  const pInHg = c.mode==="stn" ? c.stn : stdPressure(c.alt);
+  const tC=(c.temp-32)/1.8, T=tC+273.15, P=pInHg*3386.389;
+  const es=610.78*Math.pow(10,7.5*tC/(tC+237.3));
+  const Pv=Math.max(0,Math.min(100,c.hum))/100*es;
+  const rho=(P-Pv)/(287.058*T)+Pv/(461.495*T);
+  return {DR:rho/RHO_STD, sos:49.0223*Math.sqrt(c.temp+459.67), pInHg};
+}
+function effMv(load,c){
+  const k=Number(load.k)||0, ref=Number(load.refT);
+  return load.mv + (isFinite(ref)? k*(c.temp-ref) : 0);
+}
+function fly(mv,bc,sh,ang,DR,sos,maxYd,dt){
+  dt=dt||0.0005;
+  let x=0,y=-sh/12,vx=mv*Math.cos(ang),vy=mv*Math.sin(ang),t=0;
+  const out=[[0,-sh,mv,0]];
+  const lim=maxYd*3;
+  while(x<lim&&vx>150&&t<6){
+    const v=Math.hypot(vx,vy);
+    const a=KDRAG*DR*cdG1(v/sos)*v*v/bc;
+    vx-=a*vx/v*dt; vy-=(a*vy/v+32.174)*dt;
+    x+=vx*dt; y+=vy*dt; t+=dt;
+    out.push([x/3,y*12,Math.hypot(vx,vy),t]);
+  }
+  return out;
+}
+function zeroAngle(mv,bc,sh,DR,sos,zeroYd){
+  let lo=-0.002,hi=0.03;
+  for(let i=0;i<32;i++){
+    const mid=(lo+hi)/2;
+    const tr=fly(mv,bc,sh,mid,DR,sos,zeroYd+25,0.0008);
+    const p=sample(tr,zeroYd);
+    if(!p||p[1]<0) lo=mid; else hi=mid;
+  }
+  return (lo+hi)/2;
+}
+function sample(tr,yd){
+  if(yd<=0)return tr[0];
+  for(let i=0;i<tr.length-1;i++){
+    if(tr[i][0]<=yd&&yd<=tr[i+1][0]){
+      const a=tr[i],b=tr[i+1],f=(b[0]-a[0])?(yd-a[0])/(b[0]-a[0]):0;
+      return [yd,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f,a[3]+(b[3]-a[3])*f];
+    }
+  }
+  return null;
+}
+let DIALC=null;
+function dialCurve(load){
+  const key=[load.mv,load.bc,load.sh,load.zero,load.k,load.refT,load.cutTemp,load.cutAlt,load.cutHum].join("|");
+  if(DIALC&&DIALC.key===key) return DIALC;
+  const cc={mode:"alt",temp:Number(load.cutTemp),hum:Number(load.cutHum)||0,alt:Number(load.cutAlt),stn:0};
+  const a=airState(cc), mv=effMv(load,cc);
+  const ang=zeroAngle(mv,load.bc,load.sh,a.DR,a.sos,load.zero);
+  DIALC={key,tr:fly(mv,load.bc,load.sh,ang,a.DR,a.sos,1500,0.0004)};
+  return DIALC;
+}
+function moaOn(tr,Y){ const p=sample(tr,Y); return p? -p[1]/(1.047*Y/100) : null; }
+function dialYardsFor(load,moaNeeded){
+  const d=dialCurve(load).tr;
+  if(moaNeeded<=0.01) return load.zero;
+  const travel=Number(load.dialMaxMoa)||38;
+  if(moaNeeded>travel) return null;            // turret physically stops here
+  const top=moaOn(d,1450);
+  if(top===null||moaNeeded>top) return null;
+  let lo=load.zero,hi=1450;
+  for(let i=0;i<40;i++){
+    const mid=(lo+hi)/2,m=moaOn(d,mid);
+    if(m===null||m<moaNeeded) lo=mid; else hi=mid;
+  }
+  return (lo+hi)/2;
+}
+let CACHE=null;
+function solve(load,c,yd,windMph){
+  const key=[load.mv,load.bc,load.sh,load.zero,load.k,load.refT,c.mode,c.temp,c.hum,c.alt,c.stn].join("|");
+  if(!CACHE||CACHE.key!==key){
+    const {DR,sos}=airState(c), mv=effMv(load,c);
+    const ang=zeroAngle(mv,load.bc,load.sh,DR,sos,load.zero);
+    CACHE={key,tr:fly(mv,load.bc,load.sh,ang,DR,sos,1500,0.0004),mv,DR,sos};
+  }
+  const p=sample(CACHE.tr,yd);
+  if(!p) return null;
+  const moa = yd>0 ? -p[1]/(1.047*yd/100) : 0;
+  const lag = p[3]-(yd*3)/CACHE.mv;
+  const windIn = (windMph*5280/3600)*lag*12;
+  return {moa, clicks:Math.round(moa/load.clickMoa), dialYds:dialYardsFor(load,moa),
+          drop:p[1], vel:p[2], tof:p[3],
+          windIn, windMoa: yd>0? windIn/(1.047*yd/100):0,
+          windClicks: yd>0? Math.round((windIn/(1.047*yd/100))/load.clickMoa):0,
+          energy:0.5*(160/7000/32.174)*p[2]*p[2], mach:p[2]/CACHE.sos};
+}
+
+/* ---------------- weather: Open-Meteo (no key, no account) ---------------- */
+const WX_URL="https://api.open-meteo.com/v1/forecast";
+const GEO_URL="https://geocoding-api.open-meteo.com/v1/search";
+const M_PER_FT=0.3048, HPA_TO_INHG=0.0295299830714;
+
+const qs=o=>Object.keys(o).map(k=>encodeURIComponent(k)+"="+encodeURIComponent(o[k])).join("&");
+
+async function getJSON(url,ms){
+  const ctl=new AbortController();
+  const timer=setTimeout(function(){ctl.abort();},ms||12000);
+  try{
+    const r=await fetch(url,{signal:ctl.signal,cache:"no-store",mode:"cors"});
+    if(!r.ok){ const e=new Error("http"); e.code="http_"+r.status; throw e; }
+    return await r.json();
+  }catch(err){
+    if(err&&err.name==="AbortError"){ const e=new Error("timeout"); e.code="timeout"; throw e; }
+    if(err&&!err.code) err.code="offline";
+    throw err;
+  }finally{ clearTimeout(timer); }
+}
+
+function wxCopy(code){
+  const c=String(code||"");
+  if(c.indexOf("http_")===0) return "Weather service returned "+c.slice(5)+". Try again in a minute.";
+  switch(c){
+    case "timeout":    return "Weather request timed out. The solver still works — enter conditions by hand.";
+    case "offline":    return "No connection. Everything else works offline — enter conditions by hand.";
+    case "no_geo":     return "This browser has no location service — use a saved place instead.";
+    case "geo_denied": return "Location denied. iPhone: Settings › Safari › Location, or the app's own entry in Settings.";
+    case "geo_fail":   return "No GPS fix. Step outside, or use a saved place.";
+    case "bad_payload":return "Weather service sent something unexpected — enter conditions by hand.";
+    default:           return "Couldn't reach the weather service. Enter conditions by hand.";
+  }
+}
+
+async function wxAt(lat,lon,altFt){
+  const d=await getJSON(WX_URL+"?"+qs({
+    latitude:lat.toFixed(4), longitude:lon.toFixed(4),
+    current:"temperature_2m,relative_humidity_2m,surface_pressure,pressure_msl,wind_speed_10m,wind_direction_10m",
+    temperature_unit:"fahrenheit", wind_speed_unit:"mph",
+    elevation:Math.round((altFt||0)*M_PER_FT)
+  }));
+  const c=d&&d.current;
+  if(!c||typeof c.temperature_2m!=="number"){ const e=new Error("bad"); e.code="bad_payload"; throw e; }
+  const num=v=>typeof v==="number"&&isFinite(v)?v:null;
+  return {
+    tempF:c.temperature_2m,
+    humPct:num(c.relative_humidity_2m),
+    mslInHg:num(c.pressure_msl)!=null?c.pressure_msl*HPA_TO_INHG:null,
+    sfcInHg:num(c.surface_pressure)!=null?c.surface_pressure*HPA_TO_INHG:null,
+    windMph:num(c.wind_speed_10m),
+    windDir:num(c.wind_direction_10m),
+    modelElevFt:num(d.elevation)!=null?Math.round(d.elevation/M_PER_FT):null,
+    at:c.time||null
+  };
+}
+
+async function geoSearch(q){
+  const d=await getJSON(GEO_URL+"?"+qs({name:q,count:6,language:"en",format:"json"}));
+  return ((d&&d.results)||[]).map(function(r){
+    return {
+      name:[r.name,r.admin1,r.country_code].filter(Boolean).join(", "),
+      lat:r.latitude, lon:r.longitude,
+      elevFt:(typeof r.elevation==="number")?Math.round(r.elevation/M_PER_FT/50)*50:null
+    };
+  });
+}
+
+function gps(opts){
+  return new Promise(function(res,rej){
+    if(!navigator.geolocation){ const e=new Error("x"); e.code="no_geo"; return rej(e); }
+    navigator.geolocation.getCurrentPosition(res,function(err){
+      const e=new Error("x"); e.code=(err&&err.code===1)?"geo_denied":"geo_fail"; rej(e);
+    },Object.assign({enableHighAccuracy:false,timeout:12000,maximumAge:120000},opts||{}));
+  });
+}
+
+const ROSE=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+const compass=d=>ROSE[Math.round((((d%360)+360)%360)/22.5)%16];
+function mslToStation(msl,altFt){
+  return msl*Math.pow(1-2.25577e-5*(altFt*M_PER_FT),5.25588);
+}
+function distKm(a,b,c,d){
+  const R=6371,t=x=>x*Math.PI/180;
+  const dLa=t(c-a),dLo=t(d-b);
+  const x=Math.sin(dLa/2)**2+Math.cos(t(a))*Math.cos(t(c))*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+
+/* ---------------- state ---------------- */
+const DEFAULT_LOADS=[{
+  id:"lrx6540", name:"160 gr LRX · 65.40 gr", mv:2945, bc:0.608, sh:1.90, zero:100,
+  clickMoa:0.25, refT:40, k:0.5, floor:1800,
+  cutTemp:22, cutAlt:2100, cutHum:0, dialMaxMoa:38, moaPerRev:20
+}];
+const DEFAULT_COND={mode:"alt", temp:40, hum:50, alt:2100, stn:27.72};
+const store={
+  get(k,f){ try{const v=localStorage.getItem(k); return v?JSON.parse(v):f;}catch(e){return f;} },
+  set(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} }
+};
+let loads=store.get("cr.loads",null)||DEFAULT_LOADS.slice();
+loads.forEach(l=>{ if(l.cutTemp===undefined){l.cutTemp=22;l.cutAlt=2100;l.cutHum=0;}
+                   if(l.dialMaxMoa===undefined){l.dialMaxMoa=38;}
+                   if(l.moaPerRev===undefined){l.moaPerRev=20;} });
+let activeId=store.get("cr.active",loads[0].id);
+let cond=Object.assign({},DEFAULT_COND,store.get("cr.cond",{}));
+let places=store.get("cr.places",[]);
+let placeId=store.get("cr.place",null);
+let wxStamp=store.get("cr.wxStamp",null);
+let yds=store.get("cr.yds",400);
+let wind=store.get("cr.wind",10);
+const active=()=>loads.find(l=>l.id===activeId)||loads[0];
+const $=id=>document.getElementById(id);
+
+/* ---------------- render ---------------- */
+function render(){
+  const L=active();
+  $("loadName").textContent=L.name;
+  $("loadSub").textContent=`${L.mv} fps · BC ${L.bc} · ${L.clickMoa} MOA/click`;
+  const air=airState(cond);
+  $("cTemp").textContent=cond.temp+"°F";
+  $("cPress").textContent=air.pInHg.toFixed(2);
+  $("cHum").textContent=cond.hum+"%";
+  $("cAlt").textContent=cond.mode==="stn"?"—":cond.alt+"′";
+
+  const r=solve(L,cond,yds,wind);
+  const flags=$("flags"); flags.textContent="";
+  if(!r){ $("clicks").textContent="—"; $("moa").textContent="out of range"; return; }
+  if(r.dialYds==null){
+    $("dialYds").textContent="—";
+    $("revWrap").hidden=true;
+    $("moa").textContent=`needs ${r.moa.toFixed(2)} MOA — past the dial`;
+  }else{
+    const dy=Math.round(r.dialYds/5)*5;
+    const off=dy-yds;
+    $("dialYds").textContent=dy;
+    const per=Number(L.moaPerRev)||20;
+    const rev=Math.floor(Math.max(0,r.moa-1e-9)/per)+1;
+    const rb=$("rev");
+    rb.textContent = rev===1 ? "1st revolution" : rev+(rev===2?"nd":"rd")+" revolution";
+    rb.className = "rev"+(rev>1?" two":"");
+    $("revWrap").hidden=false;
+    $("moa").textContent=`true range ${yds} yd  ·  ${r.moa.toFixed(2)} MOA  ·  ${r.clicks} clicks`
+      + (Math.abs(off)>=5 ? `  ·  ${off>0?"+":""}${off} on the dial` : "  ·  dial matches range");
+  }
+  $("windClicks").textContent=r.windClicks;
+  $("windMoa").textContent=r.windMoa.toFixed(2);
+  $("vel").textContent=Math.round(r.vel);
+  $("energy").textContent=Math.round(r.energy);
+  $("tof").textContent=r.tof.toFixed(2)+"s";
+
+  const add=(cls,html)=>{const d=document.createElement("div");d.className="flag "+cls;d.innerHTML=html;flags.appendChild(d)};
+  const floor=Number(L.floor)||0;
+  if(floor&&r.vel<floor)
+    add("bad",`<b>Below expansion velocity.</b> ${Math.round(r.vel)} fps is under the ${floor} fps floor — target only, not game.`);
+  if(r.mach<1.2)
+    add("warn",`<b>Transonic.</b> Mach ${r.mach.toFixed(2)} — the solution gets unreliable here.`);
+  if(r.dialYds==null)
+    add("bad","<b>Past the engraved dial.</b> This range needs more elevation than the dial carries — hold the remainder in the reticle.");
+  const maxClicks=Math.round((Number(L.dialMaxMoa)||38)/L.clickMoa);
+  if(r.clicks>maxClicks)
+    add("bad",`<b>Past the dial.</b> ${r.clicks} clicks exceeds the ${maxClicks}-click (38 MOA) travel limit.`);
+
+  if(!flags.childElementCount && floor && r.vel>=floor)
+    add("ok",`<b>Good to go.</b> ${Math.round(r.vel)} fps at target.`);
+}
+function setYds(v){
+  yds=Math.max(25,Math.min(1400,Math.round(v)));
+  if($("yds").value!=String(yds)) $("yds").value=yds;
+  store.set("cr.yds",yds); render();
+}
+
+/* ---------------- events ---------------- */
+$("yds").addEventListener("input",e=>{const v=parseInt(e.target.value,10); if(isFinite(v)) setYds(v);});
+$("plus").addEventListener("click",()=>setYds(yds+25));
+$("minus").addEventListener("click",()=>setYds(yds-25));
+$("wind").addEventListener("input",e=>{wind=Math.max(0,Number(e.target.value)||0);store.set("cr.wind",wind);render();});
+$("wind").value=wind; $("yds").value=yds;
+
+function toggleSheet(el){ const wasHidden=el.hidden; $("sheetCond").hidden=true; $("sheetLoads").hidden=true;
+  el.hidden=!wasHidden; if(!el.hidden) el.scrollIntoView({behavior:"smooth",block:"nearest"}); }
+$("condStrip").addEventListener("click",()=>{fillCond();toggleSheet($("sheetCond"))});
+$("condStrip").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fillCond();toggleSheet($("sheetCond"))}});
+$("btnLoads").addEventListener("click",()=>{fillLoads();toggleSheet($("sheetLoads"))});
+$("btnCondDone").addEventListener("click",()=>{$("sheetCond").hidden=true});
+
+function fillCond(){
+  $("fTemp").value=cond.temp; $("fHum").value=cond.hum;
+  $("fAlt").value=cond.alt; $("fStn").value=cond.stn;
+  setMode(cond.mode);
+}
+function setMode(m){
+  cond.mode=m;
+  $("modeAlt").setAttribute("aria-pressed",String(m==="alt"));
+  $("modeStn").setAttribute("aria-pressed",String(m==="stn"));
+  $("wrapAlt").hidden=(m!=="alt"); $("wrapStn").hidden=(m!=="stn");
+  $("modeHint").textContent = m==="alt"
+    ? "Pressure derived from altitude using the standard atmosphere. Use this unless you have a real barometer reading."
+    : "Absolute station pressure only — never the sea-level-corrected number from a weather app, or you double-count altitude.";
+  store.set("cr.cond",cond); render();
+}
+$("modeAlt").addEventListener("click",()=>setMode("alt"));
+$("modeStn").addEventListener("click",()=>setMode("stn"));
+["fTemp","fHum","fAlt","fStn"].forEach(id=>$(id).addEventListener("input",()=>{
+  cond.temp=Number($("fTemp").value)||0;
+  cond.hum=Math.max(0,Math.min(100,Number($("fHum").value)||0));
+  cond.alt=Number($("fAlt").value)||0;
+  cond.stn=Number($("fStn").value)||stdPressure(cond.alt);
+  store.set("cr.cond",cond); render();
+}));
+
+$("btnGeo").addEventListener("click",()=>{
+  const note=$("geoNote");
+  if(!navigator.geolocation){ note.textContent="This browser has no location service — enter altitude by hand."; return; }
+  note.textContent="Locating…";
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const {latitude,longitude,altitude,accuracy}=pos.coords;
+    let msg=`Position ${latitude.toFixed(4)}, ${longitude.toFixed(4)} (±${Math.round(accuracy)} m). `;
+    if(altitude!=null&&isFinite(altitude)){
+      cond.alt=Math.round(altitude*3.28084/50)*50; $("fAlt").value=cond.alt;
+      setMode("alt"); msg+=`Altitude ${cond.alt} ft — GPS altitude is rough, check it against a map.`;
+    } else {
+      msg+="No altitude from GPS — enter it by hand.";
+    }
+    note.textContent=msg; store.set("cr.cond",cond); render();
+  },err=>{
+    note.textContent = err.code===1
+      ? "Location permission denied — enter altitude by hand."
+      : "Couldn't get a fix — enter altitude by hand.";
+  },{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
+});
+
+function fillLoads(){
+  const sel=$("fPick"); sel.textContent="";
+  loads.forEach(l=>{const o=document.createElement("option");o.value=l.id;o.textContent=l.name;sel.appendChild(o)});
+  sel.value=activeId;
+  const L=active();
+  $("fName").value=L.name; $("fMv").value=L.mv; $("fBc").value=L.bc; $("fSh").value=L.sh;
+  $("fZero").value=L.zero; $("fClick").value=L.clickMoa; $("fRefT").value=L.refT;
+  $("fK").value=L.k; $("fFloor").value=L.floor;
+  $("fCutT").value=L.cutTemp; $("fCutA").value=L.cutAlt; $("fTravel").value=L.dialMaxMoa; $("fRev").value=L.moaPerRev;
+  $("btnDel").hidden = loads.length<2;
+}
+$("fPick").addEventListener("change",e=>{activeId=e.target.value;store.set("cr.active",activeId);fillLoads();render()});
+$("btnSave").addEventListener("click",()=>{
+  const L=active();
+  L.name=$("fName").value.trim()||L.name;
+  L.mv=Number($("fMv").value)||L.mv;
+  L.bc=Number($("fBc").value)||L.bc;
+  L.sh=Number($("fSh").value)||L.sh;
+  L.zero=Number($("fZero").value)||L.zero;
+  L.clickMoa=Number($("fClick").value)||L.clickMoa;
+  L.refT=Number($("fRefT").value);
+  L.k=Number($("fK").value)||0;
+  L.floor=Number($("fFloor").value)||0;
+  L.cutTemp=Number($("fCutT").value); L.cutAlt=Number($("fCutA").value);
+  L.dialMaxMoa=Number($("fTravel").value)||38;
+  L.moaPerRev=Number($("fRev").value)||20;
+  store.set("cr.loads",loads); CACHE=null; DIALC=null; fillLoads(); render();
+  $("sheetLoads").hidden=true;
+});
+$("btnNew").addEventListener("click",()=>{
+  const L=active();
+  const n=Object.assign({},L,{id:"L"+Date.now(),name:"New load"});
+  loads.push(n); activeId=n.id; store.set("cr.loads",loads); store.set("cr.active",activeId);
+  fillLoads(); render();
+});
+$("btnDel").addEventListener("click",()=>{
+  if(loads.length<2) return;
+  loads=loads.filter(l=>l.id!==activeId); activeId=loads[0].id;
+  store.set("cr.loads",loads); store.set("cr.active",activeId);
+  CACHE=null; DIALC=null; fillLoads(); render();
+});
+
+/* ---------------- weather wiring ---------------- */
+const curPlace=()=>places.find(p=>p.id===placeId)||null;
+function setStatus(msg,isErr){
+  const s=$("wxStatus"); s.textContent=msg||""; s.className="status"+(isErr?" err":"");
+}
+function renderPlaces(){
+  const box=$("locList"); box.textContent="";
+  if(!places.length){
+    const p=document.createElement("p"); p.className="hint";
+    p.textContent="Nothing saved yet — search below. Altitude fills in automatically.";
+    box.appendChild(p); return;
+  }
+  places.forEach(function(pl){
+    const row=document.createElement("div");
+    row.className="locline"+(pl.id===placeId?" on":"");
+    const nm=document.createElement("div"); nm.className="nm"; nm.textContent=pl.name;
+    nm.addEventListener("click",function(){
+      placeId=pl.id; store.set("cr.place",placeId);
+      cond.alt=pl.altFt; store.set("cr.cond",cond); CACHE=null; renderPlaces(); render();
+    });
+    const alt=document.createElement("input");
+    alt.type="number"; alt.inputMode="numeric"; alt.step="50"; alt.value=pl.altFt;
+    alt.id="alt-"+pl.id;
+    alt.setAttribute("aria-label","Altitude for "+pl.name);
+    alt.style.cssText="width:86px;flex:0 0 auto;background:transparent;border:0;"+
+      "font-family:var(--mono);font-size:13px;text-align:right;color:var(--ink-3)";
+    alt.addEventListener("input",function(){
+      pl.altFt=Number(alt.value)||0; store.set("cr.places",places);
+      if(pl.id===placeId){cond.alt=pl.altFt; store.set("cr.cond",cond); CACHE=null; render();}
+    });
+    const unit=document.createElement("span"); unit.className="alt"; unit.textContent="ft";
+    const x=document.createElement("button"); x.className="x"; x.type="button";
+    x.setAttribute("aria-label","Remove "+pl.name); x.textContent="×";
+    x.addEventListener("click",function(){
+      places=places.filter(function(q){return q.id!==pl.id;});
+      if(placeId===pl.id){ placeId=places.length?places[0].id:null; store.set("cr.place",placeId); }
+      store.set("cr.places",places); renderPlaces();
+    });
+    row.appendChild(nm); row.appendChild(alt); row.appendChild(unit); row.appendChild(x);
+    box.appendChild(row);
+  });
+}
+
+function applyWx(w,altFt,label){
+  cond.temp=Math.round(w.tempF);
+  if(w.humPct!=null) cond.hum=Math.round(w.humPct);
+  let pnote;
+  if(w.mslInHg!=null){
+    cond.stn=Number(mslToStation(w.mslInHg,altFt).toFixed(2));
+    cond.mode="stn";
+    pnote=w.mslInHg.toFixed(2)+" MSL → "+cond.stn.toFixed(2)+" stn @ "+altFt+" ft";
+  }else if(w.sfcInHg!=null){
+    cond.stn=Number(w.sfcInHg.toFixed(2)); cond.mode="stn";
+    pnote=cond.stn.toFixed(2)+" inHg station (direct)";
+  }else{
+    cond.mode="alt"; pnote="no pressure returned — using altitude";
+  }
+  cond.alt=altFt;
+  store.set("cr.cond",cond);
+  wxStamp=Date.now(); store.set("cr.wxStamp",wxStamp);
+  CACHE=null; fillCond(); setMode(cond.mode); render();
+
+  const box=$("wxOut"); box.hidden=false; box.textContent="";
+  const head=document.createElement("div"); head.className="wxhead"; head.textContent=label;
+  box.appendChild(head);
+  [["Temp",Math.round(w.tempF)+" °F"],
+   ["Humidity",w.humPct!=null?Math.round(w.humPct)+" %":"—"],
+   ["Pressure",pnote],
+   ["Wind",w.windMph!=null?(Math.round(w.windMph)+" mph from "+(w.windDir!=null?compass(w.windDir):"?")):"—"],
+   ["Reading",w.at?String(w.at).replace("T"," "):"just now"]
+  ].forEach(function(kv){
+    const r=document.createElement("div"); r.className="wxline";
+    const a=document.createElement("span"); a.className="k"; a.textContent=kv[0];
+    const b=document.createElement("span"); b.className="v"; b.textContent=kv[1];
+    r.appendChild(a); r.appendChild(b); box.appendChild(r);
+  });
+  if(w.windMph!=null){
+    const btn=document.createElement("button");
+    btn.type="button"; btn.className="btn sec"; btn.style.margin="10px 0 0";
+    btn.textContent="Put "+Math.round(w.windMph)+" mph in the solver";
+    btn.addEventListener("click",function(){
+      wind=Math.round(w.windMph); store.set("cr.wind",wind);
+      $("wind").value=wind; render();
+      setStatus("Wind set to "+wind+" mph, full value. Cut it yourself if it isn't square to you.");
+    });
+    box.appendChild(btn);
+  }
+  setStatus("");
+}
+
+async function doHere(){
+  $("wxOut").hidden=true; setStatus("Locating…");
+  try{
+    const p=await gps({enableHighAccuracy:true});
+    const la=p.coords.latitude, lo=p.coords.longitude;
+    let altFt=Number(cond.alt)||0;
+    if(p.coords.altitude!=null&&isFinite(p.coords.altitude)){
+      altFt=Math.round(p.coords.altitude/M_PER_FT/50)*50;
+    }
+    setStatus("Reading conditions for "+la.toFixed(3)+", "+lo.toFixed(3)+"…");
+    const w=await wxAt(la,lo,altFt);
+    if(!altFt&&w.modelElevFt) altFt=Math.round(w.modelElevFt/50)*50;
+    $("fAlt").value=altFt;
+    applyWx(w,altFt,"Here · "+la.toFixed(3)+", "+lo.toFixed(3)+" · "+altFt+" ft");
+  }catch(err){ setStatus(wxCopy(err&&err.code),true); }
+}
+
+async function doSearch(){
+  const q=$("wxQuery").value.trim();
+  if(!q){ setStatus("Type a town name first."); return; }
+  setStatus("Searching…"); $("wxHits").textContent="";
+  try{
+    const hits=await geoSearch(q);
+    if(!hits.length){ setStatus("No match for that name. Try the nearest town."); return; }
+    setStatus("");
+    hits.forEach(function(hit){
+      const b=document.createElement("button"); b.type="button"; b.className="hit";
+      b.textContent=hit.name+(hit.elevFt!=null?"  · "+hit.elevFt+" ft":"");
+      b.addEventListener("click",function(){addPlace(hit);});
+      $("wxHits").appendChild(b);
+    });
+  }catch(err){ setStatus(wxCopy(err&&err.code),true); }
+}
+
+function addPlace(hit){
+  $("wxHits").textContent=""; $("wxQuery").value="";
+  const pl={id:"P"+Date.now(),name:hit.name,lat:hit.lat,lon:hit.lon,
+            altFt:hit.elevFt!=null?hit.elevFt:(Number(cond.alt)||2100)};
+  places.push(pl); placeId=pl.id;
+  store.set("cr.places",places); store.set("cr.place",placeId);
+  renderPlaces();
+  setStatus("Saved "+pl.name+" at "+pl.altFt+" ft. Check that altitude, then Fetch.");
+}
+
+async function doFetch(){
+  const pl=curPlace();
+  if(!pl){ setStatus("Pick or add a place first."); return; }
+  if(typeof pl.lat!=="number"||typeof pl.lon!=="number"){
+    setStatus("That place has no coordinates — remove it and search again.",true); return;
+  }
+  $("wxOut").hidden=true; setStatus("Fetching "+pl.name+"…");
+  try{
+    const w=await wxAt(pl.lat,pl.lon,pl.altFt);
+    applyWx(w,pl.altFt,pl.name+" · "+pl.altFt+" ft");
+  }catch(err){ setStatus(wxCopy(err&&err.code),true); }
+}
+
+async function doNearest(){
+  const withGeo=places.filter(function(p){return typeof p.lat==="number"&&typeof p.lon==="number";});
+  if(!withGeo.length){ setStatus("No saved places with coordinates yet."); return; }
+  setStatus("Locating…");
+  try{
+    const p=await gps();
+    const la=p.coords.latitude, lo=p.coords.longitude;
+    let best=null,bd=1e9;
+    withGeo.forEach(function(q){const dd=distKm(la,lo,q.lat,q.lon); if(dd<bd){bd=dd;best=q;}});
+    placeId=best.id; cond.alt=best.altFt;
+    store.set("cr.place",placeId); store.set("cr.cond",cond);
+    renderPlaces(); CACHE=null; render();
+    setStatus("Nearest saved place: "+best.name+" ("+Math.round(bd)+" km). Fetching…");
+    await doFetch();
+  }catch(err){ setStatus(wxCopy(err&&err.code),true); }
+}
+
+$("btnHere").addEventListener("click",doHere);
+$("btnWxSearch").addEventListener("click",doSearch);
+$("wxQuery").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();doSearch();}});
+$("btnFetch").addEventListener("click",doFetch);
+$("btnNearest").addEventListener("click",doNearest);
+$("btnWx").addEventListener("click",function(){renderPlaces();toggleSheet($("sheetWx"));});
+
+
+render();
+$("btnWx").hidden=false;
+
+/* ---------------- offline: service worker ---------------- */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",function(){
+    navigator.serviceWorker.register("./sw.js").then(function(reg){
+      reg.addEventListener("updatefound",function(){
+        var sw=reg.installing||reg.waiting;
+        if(sw) sw.addEventListener("statechange",function(){
+          if(sw.state==="installed"&&navigator.serviceWorker.controller){
+            var b=document.getElementById("updBar");
+            if(b) b.hidden=false;
+          }
+        });
+      });
+    }).catch(function(){});
+  });
+}
+</script>
+
+</body>
+</html>
