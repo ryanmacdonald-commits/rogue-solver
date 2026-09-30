@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Rogue Solver">
 <meta name="theme-color" content="#eaeef1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#090d10" media="(prefers-color-scheme: dark)">
@@ -43,7 +43,9 @@
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
 body{margin:0; background:var(--bg); color:var(--ink);
   font-family:var(--sans); font-size:16px; line-height:1.45}
-.app{max-width:520px; margin:0 auto; padding-inline:16px; padding-block:14px 40px}
+.app{max-width:520px; margin:0 auto;
+  padding-inline:calc(16px + env(safe-area-inset-left,0px)) calc(16px + env(safe-area-inset-right,0px));
+  padding-block:calc(14px + env(safe-area-inset-top,0px)) calc(40px + env(safe-area-inset-bottom,0px))}
 .num{font-family:var(--mono); font-variant-numeric:tabular-nums}
 
 /* header */
@@ -191,8 +193,8 @@ body{margin:0; background:var(--bg); color:var(--ink);
   padding:6px 12px; font:inherit; font-weight:600; cursor:pointer}
 </style>
 <link rel="manifest" href="./manifest.webmanifest">
-<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <meta name="description" content="7mm PRC Carbon Rogue ballistic solver - CDS dial yardage from live conditions, works offline.">
 </head>
 <body>
