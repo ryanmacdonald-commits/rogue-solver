@@ -1,20 +1,29 @@
 /* Carbon Rogue Solver - offline service worker.
    Bump CACHE on every deploy so phones pick the new build up. */
-const CACHE = "rogue-solver-v1";
+const CACHE = "rogue-solver-v2";
 const SHELL = [
   "./",
-  "./index.html",
   "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/maskable-512.png",
-  "./icons/apple-touch-icon.png"
+  "./icon-192.png",
+  "./icon-512.png",
+  "./maskable-512.png",
+  "./apple-touch-icon.png"
 ];
+
+// Cache each file on its own. addAll() is all-or-nothing: one file 404s mid-deploy
+// and the entire shell goes uncached, silently, and you find out with no signal.
+function fill(c) {
+  return Promise.all(SHELL.map(function (url) {
+    return c.match(url).then(function (hit) {
+      return hit ? null : c.add(url).catch(function () { return null; });
+    });
+  }));
+}
 
 self.addEventListener("install", function (e) {
   e.waitUntil(
     caches.open(CACHE)
-      .then(function (c) { return c.addAll(SHELL); })
+      .then(fill)
       .then(function () { return self.skipWaiting(); })
       .catch(function () { return self.skipWaiting(); })
   );
@@ -28,7 +37,11 @@ self.addEventListener("activate", function (e) {
           return k === CACHE ? null : caches.delete(k);
         }));
       })
+      // Second pass: anything install missed gets picked up here, so a bad
+      // deploy heals itself on the next load instead of staying broken.
+      .then(function () { return caches.open(CACHE).then(fill); })
       .then(function () { return self.clients.claim(); })
+      .catch(function () { return self.clients.claim(); })
   );
 });
 
@@ -56,7 +69,7 @@ self.addEventListener("fetch", function (e) {
       if (hit) return hit;
       return live.then(function (res) {
         if (res) return res;
-        if (req.mode === "navigate") return caches.match("./index.html");
+        if (req.mode === "navigate") return caches.match("./");
         return new Response("", { status: 504, statusText: "Offline" });
       });
     })
