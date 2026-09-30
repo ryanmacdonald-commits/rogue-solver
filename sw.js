@@ -1,6 +1,6 @@
 /* Carbon Rogue Solver - offline service worker.
    Bump CACHE on every deploy so phones pick the new build up. */
-const CACHE = "rogue-solver-v4";
+const CACHE = "rogue-solver-v5";
 const SHELL = [
   "./",
   "./manifest.webmanifest",

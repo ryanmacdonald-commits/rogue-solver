@@ -229,6 +229,18 @@ table.dt tbody tr:nth-child(even) th,table.dt tbody tr:nth-child(even){backgroun
 table.dt tbody td{color:var(--ink-2)}
 table.dt tr.dim td,table.dt tr.dim th{opacity:.45}
 table.dt td.bad{color:var(--bad)}
+
+/* reticle hold diagram */
+.retwrap{background:var(--card-2); border:1px solid var(--rule); border-radius:12px;
+  padding:14px 10px; margin-bottom:12px}
+.retwrap svg{display:block; width:100%; height:auto; max-width:330px; margin:0 auto}
+.retwrap .rs{stroke:var(--ink-2); stroke-width:1.6; vector-effect:non-scaling-stroke}
+.retwrap .rh{stroke:var(--ink-2); stroke-width:1.6; vector-effect:non-scaling-stroke}
+.retwrap .rh.big{stroke:var(--ink); stroke-width:2.4}
+.retwrap .rm{fill:var(--ink-3); font-family:var(--mono); font-size:9px}
+.retwrap .ry{fill:var(--accent); font-family:var(--mono); font-size:14px; font-weight:700}
+.retwrap .ru{fill:var(--ink-3); font-family:var(--mono); font-size:9px}
+.retwrap .off{fill:var(--ink-3); opacity:.55}
 </style>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
@@ -251,6 +263,7 @@ table.dt td.bad{color:var(--bad)}
       <div class="sub" style="color:var(--accent)">Offline build · manual conditions</div>
     </div>
     <div style="display:flex; gap:7px">
+      <button class="ghost" id="btnHold" type="button">Hold</button>
       <button class="ghost" id="btnData" type="button">Data</button>
       <button class="ghost" id="btnWx" type="button" hidden>Wx</button>
       <button class="ghost" id="btnLoads" type="button">Loads</button>
@@ -362,6 +375,23 @@ table.dt td.bad{color:var(--bad)}
       altitude before it reaches the solver. Search fills altitude from terrain data — check it,
       terrain models round off. Wind is a 10&nbsp;m model wind for the grid square, not what's at
       your muzzle. Treat it as a starting number, never as the call.</p>
+  </div>
+
+  <!-- reticle hold sheet -->
+  <div class="sheet" id="sheetHold" hidden>
+    <h2>Reticle holds &mdash; TMOA</h2>
+    <div class="flag warn" style="margin:0 0 12px">
+      <b>18× only.</b> The TMOA is a second-focal-plane reticle, so the hash marks
+      only subtend 1&nbsp;MOA at maximum magnification. Every yardage below is wrong at
+      any other power — at 10× a hash is worth 1.8&nbsp;MOA, not 1.
+    </div>
+    <p class="hint" id="holdCap"></p>
+    <div id="holdRet" class="retwrap"></div>
+    <div class="tablewrap" id="holdTable"></div>
+    <p class="note">Holds are measured from your 100&nbsp;yd zero with the turret at the
+      bottom — dial and hold at the same time and these numbers no longer apply.
+      The wind column is MOA at the speed set on the main screen, so it reads straight
+      across onto the horizontal hashes. Rows below the expansion floor are dimmed.</p>
   </div>
 
   <!-- trajectory sheet -->
@@ -717,6 +747,7 @@ function render(){
     add("ok",`<b>Good to go.</b> ${Math.round(r.vel)} fps at target.`);
 
   if(!$("sheetData").hidden) renderData();
+  if(!$("sheetHold").hidden) renderHold();
 }
 function setYds(v){                       // clamp + write back: buttons, restore
   yds=Math.max(25,Math.min(1400,Math.round(v)));
@@ -742,7 +773,7 @@ $("wind").addEventListener("input",e=>{wind=Math.max(0,Number(e.target.value)||0
 $("wind").value=wind; $("yds").value=yds;
 
 function toggleSheet(el){ const wasHidden=el.hidden;
-  ["sheetCond","sheetLoads","sheetWx","sheetData"].forEach(function(id){$(id).hidden=true;});
+  ["sheetCond","sheetLoads","sheetWx","sheetData","sheetHold"].forEach(function(id){$(id).hidden=true;});
   el.hidden=!wasHidden; if(!el.hidden) el.scrollIntoView({behavior:"smooth",block:"nearest"}); }
 $("condStrip").addEventListener("click",()=>{fillCond();toggleSheet($("sheetCond"))});
 $("condStrip").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fillCond();toggleSheet($("sheetCond"))}});
@@ -1166,6 +1197,101 @@ $("btnData").addEventListener("click",function(){
   const sh=$("sheetData");
   toggleSheet(sh);
   if(!sh.hidden) renderData();
+});
+
+
+/* ---------------- TMOA reticle holdover ----------------
+   Leupold TMOA: 1 MOA hash spacing, marks to 10 MOA each side, SECOND focal
+   plane - the subtensions are only true at maximum magnification (18x on a
+   3-18x50). Hold at 10x and every number below is wrong by nearly half. */
+const HASH_MAX=10;
+
+function holdRows(L,c,windMph){
+  const fine=[];
+  for(let yd=50; yd<=1400; yd+=5){
+    const r=solve(L,c,yd,windMph);
+    if(!r) break;
+    fine.push({yd:yd,moa:r.moa,vel:r.vel,energy:r.energy,windMoa:r.windMoa,tof:r.tof});
+  }
+  const out=[];
+  for(let m=1;m<=HASH_MAX;m++){
+    let a=null,b=null;
+    for(let i=0;i<fine.length-1;i++){
+      if(fine[i].moa<=m&&fine[i+1].moa>=m){ a=fine[i]; b=fine[i+1]; break; }
+    }
+    if(!a){ out.push({moa:m,yd:null}); continue; }
+    const t=(m-a.moa)/((b.moa-a.moa)||1), ip=function(k){return a[k]+(b[k]-a[k])*t;};
+    out.push({moa:m, yd:Math.round(ip("yd")), vel:ip("vel"), energy:ip("energy"),
+              windMoa:ip("windMoa"), tof:ip("tof")});
+  }
+  return out;
+}
+
+const RW=300, RH=236, RCX=104, RCY=34, RBOT=210;
+
+function reticleSvg(rows,floor){
+  const step=(RBOT-RCY)/HASH_MAX;
+  let s='<svg viewBox="0 0 '+RW+' '+RH+'" role="img" aria-label="TMOA reticle with a yardage beside each hash mark">';
+  s+='<line class="rs" x1="'+RCX+'" y1="'+(RCY-22)+'" x2="'+RCX+'" y2="'+RBOT+'"/>';
+  s+='<line class="rs" x1="'+(RCX-46)+'" y1="'+RCY+'" x2="'+(RCX+46)+'" y2="'+RCY+'"/>';
+  for(let i=1;i<=5;i++){                       // windage hashes, unlabelled
+    [-1,1].forEach(function(sgn){
+      const x=RCX+sgn*i*8.2, h=(i===5?5:3);
+      s+='<line class="rh" x1="'+x.toFixed(1)+'" y1="'+(RCY-h)+'" x2="'+x.toFixed(1)+'" y2="'+(RCY+h)+'"/>';
+    });
+  }
+  rows.forEach(function(r,i){
+    const m=i+1, y=RCY+m*step, big=(m%5===0), w=big?11:7;
+    s+='<line class="rh'+(big?' big':'')+'" x1="'+(RCX-w)+'" y1="'+y.toFixed(1)+'" x2="'+(RCX+w)+'" y2="'+y.toFixed(1)+'"/>';
+    s+='<text class="rm" x="'+(RCX-18)+'" y="'+(y+3.5).toFixed(1)+'" text-anchor="end">'+m+'</text>';
+    if(r.yd==null){
+      s+='<text class="ry off" x="'+(RCX+58)+'" y="'+(y+4).toFixed(1)+'">—</text>';
+    }else{
+      const cold=floor&&r.vel<floor;
+      s+='<text class="ry'+(cold?' off':'')+'" x="'+(RCX+58)+'" y="'+(y+4).toFixed(1)+'">'+r.yd+'</text>';
+      s+='<text class="ru'+(cold?' off':'')+'" x="'+(RCX+58+String(r.yd).length*8.8)+'" y="'+(y+4).toFixed(1)+'">yd</text>';
+    }
+  });
+  s+='<text class="ry" x="'+(RCX+58)+'" y="'+(RCY+4)+'">100</text>';
+  s+='<text class="ru" x="'+(RCX+58+3*8.8)+'" y="'+(RCY+4)+'">yd</text>';
+  s+='</svg>';
+  return s;
+}
+
+function renderHold(){
+  const L=active(), floor=Number(L.floor)||0;
+  const rows=holdRows(L,cond,wind);
+  $("holdRet").innerHTML=reticleSvg(rows,floor);
+
+  const last=rows.filter(function(r){return r.yd!=null;}).pop();
+  $("holdCap").textContent = last
+    ? "The whole reticle covers to "+last.yd+" yd. Inside that you never touch the turret."
+    : "No hold solution in these conditions.";
+
+  let t='<table class="dt"><thead><tr>'
+    +'<th><span>Hash</span><em>MOA</em></th><th><span>Range</span><em>yd</em></th>'
+    +'<th><span>Vel</span><em>fps</em></th><th><span>Energy</span><em>ft-lb</em></th>'
+    +'<th><span>Wind</span><em>'+wind+' mph</em></th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    if(r.yd==null){
+      t+='<tr class="dim"><th scope="row">'+r.moa+'</th><td>—</td><td>—</td><td>—</td><td>—</td></tr>';
+      return;
+    }
+    const cold=floor&&r.vel<floor;
+    t+='<tr'+(cold?' class="dim"':'')+'><th scope="row">'+r.moa+'</th>'
+      +'<td>'+r.yd+'</td>'
+      +'<td'+(cold?' class="bad"':'')+'>'+Math.round(r.vel)+'</td>'
+      +'<td>'+Math.round(r.energy)+'</td>'
+      +'<td>'+r.windMoa.toFixed(1)+'</td></tr>';
+  });
+  t+='</tbody></table>';
+  $("holdTable").innerHTML=t;
+}
+
+$("btnHold").addEventListener("click",function(){
+  const sh=$("sheetHold");
+  toggleSheet(sh);
+  if(!sh.hidden) renderHold();
 });
 
 
