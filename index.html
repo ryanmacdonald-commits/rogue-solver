@@ -191,6 +191,44 @@ body{margin:0; background:var(--bg); color:var(--ink);
   box-shadow:var(--shadow)}
 #updBar button{background:#fff2; color:#fff; border:1px solid #fff5; border-radius:8px;
   padding:6px 12px; font:inherit; font-weight:600; cursor:pointer}
+
+/* trajectory charts + table */
+.chart{margin:0 0 15px}
+.chart figcaption{display:flex; justify-content:space-between; align-items:baseline;
+  font-family:var(--mono); font-size:10px; letter-spacing:.11em; text-transform:uppercase;
+  margin-bottom:3px}
+.chart .ct{color:var(--ink-2); font-weight:600}
+.chart .cu{color:var(--ink-3)}
+.cbody svg{display:block; width:100%; height:auto; touch-action:pan-y}
+.cbody .gl{stroke:var(--rule); stroke-width:1; vector-effect:non-scaling-stroke}
+.cbody .ln{fill:none; stroke:var(--accent); stroke-width:2;
+  stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke}
+.cbody .th{stroke:var(--warn); stroke-width:1; stroke-dasharray:3 3;
+  vector-effect:non-scaling-stroke}
+.cbody .thl{fill:var(--warn); font-family:var(--mono); font-size:8px}
+.cbody .ax{fill:var(--ink-3); font-family:var(--mono); font-size:8.5px}
+.cbody .end{fill:var(--accent); stroke:var(--card); stroke-width:2}
+.cbody .cx{stroke:var(--ink-3); stroke-width:1; vector-effect:non-scaling-stroke}
+.cbody .cd{fill:var(--accent); stroke:var(--card); stroke-width:2}
+.chartread{font-family:var(--mono); font-size:12px; color:var(--ink-2);
+  background:var(--card-2); border:1px solid var(--rule); border-radius:8px;
+  padding:8px 10px; margin:2px 0 14px; text-align:center; min-height:17px}
+.tablewrap{overflow-x:auto; -webkit-overflow-scrolling:touch; max-height:58vh;
+  overflow-y:auto; border:1px solid var(--rule); border-radius:10px}
+table.dt{border-collapse:collapse; width:100%; font-family:var(--mono);
+  font-size:12px; font-variant-numeric:tabular-nums}
+table.dt th,table.dt td{padding:6px 9px; text-align:right; white-space:nowrap}
+table.dt thead th{position:sticky; top:0; z-index:2; background:var(--card-2);
+  color:var(--ink-3); font-size:9px; letter-spacing:.08em; text-transform:uppercase;
+  font-weight:600; border-bottom:1px solid var(--rule); line-height:1.25}
+table.dt thead th span{display:block}
+table.dt thead th em{display:block; font-style:normal; font-size:8px; opacity:.7}
+table.dt tbody th{position:sticky; left:0; z-index:1; background:var(--card);
+  text-align:left; font-weight:700; color:var(--ink)}
+table.dt tbody tr:nth-child(even) th,table.dt tbody tr:nth-child(even){background:var(--card-2)}
+table.dt tbody td{color:var(--ink-2)}
+table.dt tr.dim td,table.dt tr.dim th{opacity:.45}
+table.dt td.bad{color:var(--bad)}
 </style>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
@@ -213,6 +251,7 @@ body{margin:0; background:var(--bg); color:var(--ink);
       <div class="sub" style="color:var(--accent)">Offline build · manual conditions</div>
     </div>
     <div style="display:flex; gap:7px">
+      <button class="ghost" id="btnData" type="button">Data</button>
       <button class="ghost" id="btnWx" type="button" hidden>Wx</button>
       <button class="ghost" id="btnLoads" type="button">Loads</button>
     </div>
@@ -323,6 +362,18 @@ body{margin:0; background:var(--bg); color:var(--ink);
       altitude before it reaches the solver. Search fills altitude from terrain data — check it,
       terrain models round off. Wind is a 10&nbsp;m model wind for the grid square, not what's at
       your muzzle. Treat it as a starting number, never as the call.</p>
+  </div>
+
+  <!-- trajectory sheet -->
+  <div class="sheet" id="sheetData" hidden>
+    <h2>Trajectory</h2>
+    <p class="hint" id="dataRange"></p>
+    <div id="charts"></div>
+    <p class="chartread" id="chartRead"></p>
+    <div class="tablewrap" id="tableWrap"></div>
+    <p class="note">Built live from the conditions and wind loaded right now, not a stored
+      card — change the weather and every number here moves. Rows past the dial, or below
+      the expansion floor, are dimmed.</p>
   </div>
 
   <!-- loads sheet -->
@@ -664,21 +715,34 @@ function render(){
 
   if(!flags.childElementCount && floor && r.vel>=floor)
     add("ok",`<b>Good to go.</b> ${Math.round(r.vel)} fps at target.`);
+
+  if(!$("sheetData").hidden) renderData();
 }
-function setYds(v){
+function setYds(v){                       // clamp + write back: buttons, restore
   yds=Math.max(25,Math.min(1400,Math.round(v)));
   if($("yds").value!=String(yds)) $("yds").value=yds;
   store.set("cr.yds",yds); render();
 }
+function typeYds(raw){                    // while typing: never touch the field
+  const t=String(raw).trim();
+  if(t==="") return;                      // let him clear it
+  const v=parseInt(t,10);
+  if(!isFinite(v)) return;
+  // Only accept once the number is actually in range. Snapping "5" up to 25 on the
+  // way to "500" rewrites the box and strands the cursor - that was the bug.
+  if(v>=25&&v<=1400){ yds=v; store.set("cr.yds",yds); render(); }
+}
 
 /* ---------------- events ---------------- */
-$("yds").addEventListener("input",e=>{const v=parseInt(e.target.value,10); if(isFinite(v)) setYds(v);});
+$("yds").addEventListener("input",e=>typeYds(e.target.value));
+$("yds").addEventListener("blur",e=>{const v=parseInt(e.target.value,10); setYds(isFinite(v)?v:yds);});
 $("plus").addEventListener("click",()=>setYds(yds+25));
 $("minus").addEventListener("click",()=>setYds(yds-25));
 $("wind").addEventListener("input",e=>{wind=Math.max(0,Number(e.target.value)||0);store.set("cr.wind",wind);render();});
 $("wind").value=wind; $("yds").value=yds;
 
-function toggleSheet(el){ const wasHidden=el.hidden; $("sheetCond").hidden=true; $("sheetLoads").hidden=true;
+function toggleSheet(el){ const wasHidden=el.hidden;
+  ["sheetCond","sheetLoads","sheetWx","sheetData"].forEach(function(id){$(id).hidden=true;});
   el.hidden=!wasHidden; if(!el.hidden) el.scrollIntoView({behavior:"smooth",block:"nearest"}); }
 $("condStrip").addEventListener("click",()=>{fillCond();toggleSheet($("sheetCond"))});
 $("condStrip").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fillCond();toggleSheet($("sheetCond"))}});
@@ -943,6 +1007,166 @@ $("wxQuery").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preven
 $("btnFetch").addEventListener("click",doFetch);
 $("btnNearest").addEventListener("click",doNearest);
 $("btnWx").addEventListener("click",function(){renderPlaces();toggleSheet($("sheetWx"));});
+
+
+/* ---------------- trajectory table + charts ---------------- */
+const CHART_STEP=25, TABLE_STEP=50, RANGE_CAP=1400;
+let CHARTS=[], DATAROWS=[];
+
+function trajRows(L,c,windMph,step){
+  const rows=[], dialMax=Number(L.dialMaxMoa)||38;
+  for(let yd=100; yd<=RANGE_CAP; yd+=step){
+    const r=solve(L,c,yd,windMph);
+    if(!r) break;
+    rows.push({yd:yd, moa:r.moa, clicks:r.clicks, dialYds:r.dialYds, dropIn:-r.drop,
+               vel:r.vel, energy:r.energy, tof:r.tof, mach:r.mach, windIn:r.windIn});
+    if(r.moa>dialMax) break;          // past the engraved dial - nothing useful beyond
+  }
+  return rows;
+}
+
+function niceTicks(lo,hi,n){
+  const span=(hi-lo)||1, raw=span/n;
+  const mag=Math.pow(10,Math.floor(Math.log10(raw))), norm=raw/mag;
+  const step=(norm<=1?1:norm<=2?2:norm<=5?5:10)*mag;
+  const out=[]; 
+  for(let v=Math.floor(lo/step)*step; v<=hi+step*0.5; v+=step){
+    if(v>=lo-step*0.5) out.push(Math.round(v*1e6)/1e6);
+  }
+  return out.length>1?out:[lo,hi];
+}
+
+const CW=320, CH=120, CL=42, CR=14, CT=12, CB=20;
+
+function buildChart(host,rows,pick,opt){
+  const xs=rows.map(function(r){return r.yd;}), ys=rows.map(pick);
+  const x0=xs[0], x1=xs[xs.length-1];
+  let y0=Math.min.apply(null,ys), y1=Math.max.apply(null,ys);
+  if(opt.threshold!=null){ y0=Math.min(y0,opt.threshold); y1=Math.max(y1,opt.threshold); }
+  const ticks=niceTicks(y0,y1,3);
+  y0=Math.min(y0,ticks[0]); y1=Math.max(y1,ticks[ticks.length-1]);
+  const dec=(ticks.length>1&&Math.abs(ticks[1]-ticks[0])<1)?1:0;
+  const px=function(v){return CL+(v-x0)/((x1-x0)||1)*(CW-CL-CR);};
+  const py=function(v){return CT+(1-(v-y0)/((y1-y0)||1))*(CH-CT-CB);};
+
+  let s='<svg viewBox="0 0 '+CW+' '+CH+'" role="img" aria-label="'+opt.title+' against range">';
+  // hairline grid, solid, one step off the surface
+  ticks.forEach(function(t){
+    s+='<line class="gl" x1="'+CL+'" y1="'+py(t).toFixed(1)+'" x2="'+(CW-CR)+'" y2="'+py(t).toFixed(1)+'"/>';
+    s+='<text class="ax" x="'+(CL-6)+'" y="'+(py(t)+3).toFixed(1)+'" text-anchor="end">'+opt.tick(t,dec)+'</text>';
+  });
+  if(opt.threshold!=null){
+    const ty=py(opt.threshold).toFixed(1);
+    s+='<line class="th" x1="'+CL+'" y1="'+ty+'" x2="'+(CW-CR)+'" y2="'+ty+'"/>';
+    s+='<text class="thl" x="'+(CW-CR)+'" y="'+(Number(ty)-6).toFixed(1)+'" text-anchor="end">'+opt.thLabel+'</text>';
+  }
+  s+='<path class="ln" d="'+rows.map(function(r,i){
+        return (i?'L':'M')+px(r.yd).toFixed(1)+' '+py(pick(r)).toFixed(1);}).join(' ')+'"/>';
+  // x ticks at the ends only - the shared readout carries the rest
+  s+='<text class="ax" x="'+CL+'" y="'+(CH-6)+'" text-anchor="start">'+x0+'</text>';
+  s+='<text class="ax" x="'+(CW-CR)+'" y="'+(CH-6)+'" text-anchor="end">'+x1+' yd</text>';
+  // endpoint marker, ringed in the surface colour
+  const lx=px(x1).toFixed(1), ly=py(ys[ys.length-1]).toFixed(1);
+  s+='<circle class="end" cx="'+lx+'" cy="'+ly+'" r="3.5"/>';
+  s+='<line class="cx" x1="0" y1="'+CT+'" x2="0" y2="'+(CH-CB)+'" style="display:none"/>';
+  s+='<circle class="cd" cx="0" cy="0" r="4" style="display:none"/>';
+  s+='</svg>';
+  host.innerHTML=s;
+
+  const svg=host.firstChild;
+  const meta={svg:svg, rows:rows, pick:pick, px:px, py:py, x0:x0, x1:x1};
+  function locate(ev){
+    const b=svg.getBoundingClientRect();
+    const cx=(ev.clientX-b.left)/b.width*CW;
+    const yd=x0+(cx-CL)/((CW-CL-CR)||1)*(x1-x0);
+    setHover(Math.max(x0,Math.min(x1,yd)));
+  }
+  svg.addEventListener("pointermove",locate);
+  svg.addEventListener("pointerdown",locate);
+  svg.addEventListener("pointerleave",function(){setHover(null);});
+  return meta;
+}
+
+function setHover(yd){
+  const out=$("chartRead");
+  if(yd==null){
+    CHARTS.forEach(function(m){
+      m.svg.querySelector(".cx").style.display="none";
+      m.svg.querySelector(".cd").style.display="none";
+    });
+    if(out) out.textContent=CHARTS.length?"Drag across a chart to read values.":"";
+    return;
+  }
+  let pick=null, best=1e9;
+  DATAROWS.forEach(function(r){const d=Math.abs(r.yd-yd); if(d<best){best=d;pick=r;}});
+  if(!pick) return;
+  CHARTS.forEach(function(m){
+    const x=m.px(pick.yd).toFixed(1), y=m.py(m.pick(pick)).toFixed(1);
+    const cx=m.svg.querySelector(".cx"), cd=m.svg.querySelector(".cd");
+    cx.setAttribute("x1",x); cx.setAttribute("x2",x); cx.style.display="";
+    cd.setAttribute("cx",x); cd.setAttribute("cy",y); cd.style.display="";
+  });
+  if(out) out.textContent=pick.yd+" yd  ·  "+Math.round(pick.vel)+" fps  ·  "
+    +pick.moa.toFixed(2)+" MOA  ·  "+Math.round(pick.energy)+" ft-lb";
+}
+
+const z=function(v,d){return (Math.abs(v)<Math.pow(10,-d)/2?0:v).toFixed(d);};
+function renderData(){
+  const L=active();
+  const fine=trajRows(L,cond,wind,CHART_STEP);
+  DATAROWS=fine;
+  const maxYd=fine.length?fine[fine.length-1].yd:0;
+  $("dataRange").textContent=fine.length
+    ? "100 to "+maxYd+" yd — where the "+(Number(L.dialMaxMoa)||38)+" MOA dial runs out."
+    : "No solution in range.";
+  if(!fine.length){ $("charts").textContent=""; $("tableWrap").textContent=""; return; }
+
+  const floor=Number(L.floor)||0;
+  const specs=[
+    {id:"cVel", title:"Velocity", unit:"fps", pick:function(r){return r.vel;},
+     tick:function(v){return Math.round(v);},
+     threshold:(floor&&floor>=Math.min.apply(null,fine.map(function(r){return r.vel;})))?floor:null,
+     thLabel:floor+" fps expansion floor"},
+    {id:"cMoa", title:"Elevation", unit:"MOA", pick:function(r){return r.moa;},
+     tick:function(v,d){return v.toFixed(d);}, threshold:null, thLabel:""},
+    {id:"cEne", title:"Energy", unit:"ft-lb", pick:function(r){return r.energy;},
+     tick:function(v){return Math.round(v);}, threshold:null, thLabel:""}
+  ];
+  const box=$("charts"); box.textContent=""; CHARTS=[];
+  specs.forEach(function(sp){
+    const fig=document.createElement("figure"); fig.className="chart";
+    const cap=document.createElement("figcaption");
+    cap.innerHTML='<span class="ct">'+sp.title+'</span><span class="cu">'+sp.unit+'</span>';
+    const host=document.createElement("div"); host.className="cbody";
+    fig.appendChild(cap); fig.appendChild(host); box.appendChild(fig);
+    CHARTS.push(buildChart(host,fine,sp.pick,sp));
+  });
+  setHover(null);
+
+  const coarse=fine.filter(function(r){return r.yd%TABLE_STEP===0;});
+  const cols=[["Range","yd"],["Dial","yd"],["MOA",""],["Drop","in"],["Vel","fps"],["Energy","ft-lb"]];
+  let t='<table class="dt"><thead><tr>';
+  cols.forEach(function(c){t+='<th><span>'+c[0]+'</span>'+(c[1]?'<em>'+c[1]+'</em>':'')+'</th>';});
+  t+='</tr></thead><tbody>';
+  coarse.forEach(function(r){
+    const past=r.dialYds==null, cold=floor&&r.vel<floor;
+    t+='<tr'+(past||cold?' class="dim"':'')+'>'
+      +'<th scope="row">'+r.yd+'</th>'
+      +'<td>'+(past?"—":Math.round(r.dialYds/5)*5)+'</td>'
+      +'<td>'+z(r.moa,2)+'</td>'
+      +'<td>'+z(r.dropIn,1)+'</td>'
+      +'<td'+(cold?' class="bad"':'')+'>'+Math.round(r.vel)+'</td>'
+      +'<td>'+Math.round(r.energy)+'</td></tr>';
+  });
+  t+='</tbody></table>';
+  $("tableWrap").innerHTML=t;
+}
+
+$("btnData").addEventListener("click",function(){
+  const sh=$("sheetData");
+  toggleSheet(sh);
+  if(!sh.hidden) renderData();
+});
 
 
 render();
