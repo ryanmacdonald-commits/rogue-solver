@@ -379,6 +379,7 @@ table.dt td.bad{color:var(--bad)}
     </div>
     <div class="seg" role="group" aria-label="Target" style="margin-bottom:8px">
       <button type="button" id="rvElk" aria-pressed="true">Elk</button>
+      <button type="button" id="rvSteel" aria-pressed="false">Steel 75%</button>
       <button type="button" id="rvCircle" aria-pressed="false">12″ circle</button>
     </div>
     <div id="rvRet" class="retwrap rv"></div>
@@ -1457,9 +1458,17 @@ const ELK_ANAT=
   '<ellipse class="rlung" cx="428" cy="352" rx="92" ry="72"/>'+
   '<ellipse class="rlung" cx="428" cy="352" rx="92" ry="72" transform="rotate(-8 428 352)"/>'+
   '<circle class="rheart" cx="362" cy="420" r="30"/>';
+/* Ryan's steel elk at the range, traced from his photo: a 75 % bull, so ~43 in at the withers */
+const STEEL_PATH="M456,537C455,536 452,523 448,500C447,492 445,490 441,487C439,486 437,485 436,484C435,483 433,483 433,482C431,482 415,473 410,469C399,461 382,447 382,446C382,444 375,437 370,435C365,433 346,433 341,435C338,437 313,424 305,416C300,412 299,411 297,412C294,412 290,409 276,395C267,386 257,378 254,378C252,378 242,365 241,361C240,360 238,357 235,355C230,351 222,338 222,335C222,334 220,332 218,330C216,328 214,326 214,326C214,325 211,322 208,318C204,314 201,311 201,310C201,309 175,285 167,279C141,259 138,257 130,254C116,248 110,239 117,233L120,230L118,227C116,225 115,222 114,217C112,203 113,203 135,201C144,200 154,200 158,199C161,199 170,199 178,198C205,196 208,196 210,195C210,194 211,194 211,195C212,196 221,196 234,195C248,193 258,194 262,197C264,198 266,199 267,200C269,200 273,202 276,205C279,207 284,211 286,212L289,215L311,214C338,214 338,214 329,227C323,236 320,238 312,245C305,251 307,253 321,254C323,255 325,255 326,255C327,256 328,256 329,256C330,255 331,255 331,256C338,261 363,262 379,258C383,258 393,256 400,254C408,252 419,249 425,247C443,241 465,239 485,241C499,243 505,244 534,252C541,254 547,255 548,255C549,255 550,255 551,255C552,256 563,256 576,257C588,258 601,258 604,259C610,259 676,260 687,259C692,259 696,259 697,259C697,260 698,260 699,260C701,259 708,259 717,258C741,258 755,261 787,276C794,279 799,282 799,282C800,282 803,283 807,285C827,294 835,301 841,312L845,320L845,335C844,343 844,368 843,390L842,432L845,443C850,459 858,469 876,485C894,501 896,503 899,510C902,516 902,527 900,529C899,529 890,530 873,530L848,531L838,524C832,520 818,511 807,503C796,496 780,485 773,479C765,473 758,468 758,468C757,467 755,467 752,469L748,472L742,471C739,470 735,468 734,466C727,460 725,463 723,480C723,486 728,509 732,522C735,528 736,531 735,532C733,533 683,535 680,534C679,533 674,523 671,514C668,507 659,492 657,491C655,490 652,489 650,488C647,487 643,485 642,484C639,482 638,481 633,481C630,481 625,481 621,481C608,480 598,479 575,478C559,478 547,477 538,476C513,472 512,473 507,506C501,540 502,538 494,538C491,538 481,538 473,538C459,539 457,539 456,537Z";
+const STEEL_PX_PER_IN=345/43.5, STEEL_VITAL={x:460,y:330};
 function targetSvg(k,cx,cy){
   if(rvTgt==="circle")
     return '<circle class="rtv" cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+(6*k).toFixed(1)+'"/>';
+  if(rvTgt==="steel"){
+    const sc2=k/STEEL_PX_PER_IN;
+    return '<g transform="translate('+(cx-STEEL_VITAL.x*sc2).toFixed(2)+' '+(cy-STEEL_VITAL.y*sc2).toFixed(2)+') scale('+sc2.toFixed(5)+')">'
+      +'<path class="relk" d="'+STEEL_PATH+'"/></g>';
+  }
   const sc=k/ELK_PX_PER_IN;
   const tx=cx-ELK_VITAL.x*sc, ty=cy-ELK_VITAL.y*sc;
   return '<g transform="translate('+tx.toFixed(2)+' '+ty.toFixed(2)+') scale('+sc.toFixed(5)+')">'
@@ -1570,9 +1579,13 @@ function renderRose(){
   });
   const setPair=function(a,b,on){ $(a).setAttribute("aria-pressed",String(on)); $(b).setAttribute("aria-pressed",String(!on)); };
   setPair("rvDialed","rvHeld",rvMode!=="hold");
-  setPair("rvElk","rvCircle",rvTgt!=="circle");
-  $("rvElk").addEventListener("click",function(){rvTgt="elk";store.set("cr.rvTgt",rvTgt);setPair("rvElk","rvCircle",true);render();});
-  $("rvCircle").addEventListener("click",function(){rvTgt="circle";store.set("cr.rvTgt",rvTgt);setPair("rvElk","rvCircle",false);render();});
+  const setTgt=function(t){ rvTgt=t; store.set("cr.rvTgt",t);
+    [["rvElk","elk"],["rvSteel","steel"],["rvCircle","circle"]].forEach(function(q){$(q[0]).setAttribute("aria-pressed",String(q[1]===t));});
+    render(); };
+  [["rvElk","elk"],["rvSteel","steel"],["rvCircle","circle"]].forEach(function(q){
+    $(q[0]).setAttribute("aria-pressed",String(q[1]===rvTgt));
+    $(q[0]).addEventListener("click",function(){setTgt(q[1]);});
+  });
   $("rvDialed").addEventListener("click",function(){rvMode="dial";store.set("cr.rvMode",rvMode);setPair("rvDialed","rvHeld",true);render();});
   $("rvHeld").addEventListener("click",function(){rvMode="hold";store.set("cr.rvMode",rvMode);setPair("rvDialed","rvHeld",false);render();});
 })();
