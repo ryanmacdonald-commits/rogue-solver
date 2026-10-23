@@ -241,6 +241,28 @@ table.dt td.bad{color:var(--bad)}
 .retwrap .ry{fill:var(--accent); font-family:var(--mono); font-size:14px; font-weight:700}
 .retwrap .ru{fill:var(--ink-3); font-family:var(--mono); font-size:9px}
 .retwrap .off{fill:var(--ink-3); opacity:.55}
+
+/* reticle view (main screen) */
+.retview{background:var(--card); border:1px solid var(--rule); border-radius:12px;
+  padding:12px 12px 10px; margin-bottom:12px; box-shadow:var(--shadow)}
+.rvhead{display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+  margin-bottom:9px}
+.rvtitle{font-size:14px; font-weight:700}
+.rvsub{font-family:var(--mono); font-size:10.5px; color:var(--ink-3); letter-spacing:.04em;
+  text-align:right}
+.seg.zoom{margin-bottom:8px}
+.seg.zoom button{padding:9px 2px; font-size:12px; letter-spacing:0}
+.retwrap.rv{margin:0; padding:8px 4px 4px; background:var(--card-2)}
+.retwrap.rv svg{max-width:340px}
+.retwrap.rv .rh{stroke:var(--ink-2)}
+.retwrap.rv .ri{fill:var(--accent); stroke:var(--card); stroke-width:2}
+.retwrap.rv .rr{fill:none; stroke:var(--accent); stroke-width:1.4; vector-effect:non-scaling-stroke}
+.retwrap.rv .rl{stroke:var(--accent); stroke-width:1; stroke-dasharray:3 3; opacity:.7;
+  vector-effect:non-scaling-stroke}
+.retwrap.rv .rx{fill:var(--bad); font-family:var(--mono); font-size:10px; font-weight:700}
+.retwrap.rv .rz{fill:var(--ink-3); font-family:var(--mono); font-size:9px}
+.retwrap.rv .rzb{fill:var(--card-2); opacity:.9}
+.retwrap.rv .rtv{fill:var(--ink-3); opacity:.13}
 </style>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
@@ -312,6 +334,25 @@ table.dt td.bad{color:var(--bad)}
   </div>
 
   <div class="flags" id="flags"></div>
+
+  <!-- reticle view: where this shot lands at the zoom you're on -->
+  <div class="retview">
+    <div class="rvhead">
+      <div class="rvtitle">Reticle view</div>
+      <div class="rvsub" id="rvSub">—</div>
+    </div>
+    <div class="seg zoom" id="zoomSeg" role="group" aria-label="Scope magnification"></div>
+    <div class="seg" role="group" aria-label="Turret state" style="margin-bottom:8px">
+      <button type="button" id="rvDialed" aria-pressed="true">Dialed</button>
+      <button type="button" id="rvHeld" aria-pressed="false">Still on zero</button>
+    </div>
+    <div class="seg" role="group" aria-label="Wind direction">
+      <button type="button" id="rvWindL" aria-pressed="true">Wind from left</button>
+      <button type="button" id="rvWindR" aria-pressed="false">Wind from right</button>
+    </div>
+    <div id="rvRet" class="retwrap rv"></div>
+    <p class="chartread" id="rvRead" style="margin-top:8px"></p>
+  </div>
 
   <!-- conditions sheet -->
   <div class="sheet" id="sheetCond" hidden>
@@ -691,6 +732,9 @@ let placeId=store.get("cr.place",null);
 let wxStamp=store.get("cr.wxStamp",null);
 let yds=store.get("cr.yds",400);
 let wind=store.get("cr.wind",10);
+let zoom=store.get("cr.zoom",18);           // reticle view: magnification he's on
+let rvMode=store.get("cr.rvMode","dial");    // "dial" = turret set, "hold" = still on zero
+let rvWind=store.get("cr.rvWind","L");       // which side the wind blows FROM
 const active=()=>loads.find(l=>l.id===activeId)||loads[0];
 const $=id=>document.getElementById(id);
 
@@ -707,7 +751,7 @@ function render(){
 
   const r=solve(L,cond,yds,wind);
   const flags=$("flags"); flags.textContent="";
-  if(!r){ $("clicks").textContent="—"; $("moa").textContent="out of range"; return; }
+  if(!r){ $("dialYds").textContent="—"; $("moa").textContent="out of range"; renderRetView(L,null); return; }
   if(r.dialYds==null){
     $("dialYds").textContent="—";
     $("revWrap").hidden=true;
@@ -746,6 +790,7 @@ function render(){
   if(!flags.childElementCount && floor && r.vel>=floor)
     add("ok",`<b>Good to go.</b> ${Math.round(r.vel)} fps at target.`);
 
+  renderRetView(L,r);
   if(!$("sheetData").hidden) renderData();
   if(!$("sheetHold").hidden) renderHold();
 }
@@ -1294,6 +1339,106 @@ $("btnHold").addEventListener("click",function(){
   if(!sh.hidden) renderHold();
 });
 
+
+/* ---------------- reticle view: this shot, at the zoom he's on ----------------
+   Second focal plane: the reticle is one fixed size and the world shrinks behind it,
+   so a 1 MOA hash at 18x is worth 18/M MOA at M power. Everything here is drawn in
+   HASHES, which is what you actually see through the glass. */
+const ZOOMS=[3,4,6,8,10,12,14,16,18], MAG_MAX=18;
+const VW=340, VH=300, VCX=170, VCY=140, HS=12;   // px per hash, 10 hashes each way
+
+function retViewSvg(v){
+  // v: {wH, vH, aim, tgtPx, moaPerHash, off}  - wH/vH impact offset in hashes (+ = right / low)
+  let s='<svg viewBox="0 0 '+VW+' '+VH+'" role="img" aria-label="Reticle at '+zoom+' power with the impact point marked">';
+  if(v&&v.tgtPx>0)
+    s+='<circle class="rtv" cx="'+VCX+'" cy="'+VCY+'" r="'+v.tgtPx.toFixed(1)+'"/>';
+  s+='<line class="rs" x1="'+VCX+'" y1="14" x2="'+VCX+'" y2="'+(VH-14)+'"/>';
+  s+='<line class="rs" x1="14" y1="'+VCY+'" x2="'+(VW-14)+'" y2="'+VCY+'"/>';
+  for(let i=1;i<=10;i++){
+    const big=(i%5===0), w=big?9:5, cls='rh'+(big?' big':'');
+    [-1,1].forEach(function(sg){
+      const x=VCX+sg*i*HS, y=VCY+sg*i*HS;
+      s+='<line class="'+cls+'" x1="'+x+'" y1="'+(VCY-w)+'" x2="'+x+'" y2="'+(VCY+w)+'"/>';
+      s+='<line class="'+cls+'" x1="'+(VCX-w)+'" y1="'+y+'" x2="'+(VCX+w)+'" y2="'+y+'"/>';
+      if(big){
+        s+='<text class="rm" x="'+x+'" y="'+(VCY-14)+'" text-anchor="middle">'+i+'</text>';
+        s+='<text class="rm" x="'+(VCX+15)+'" y="'+(y+3)+'">'+i+'</text>';
+      }
+    });
+  }
+  if(v){
+    const cl=function(h){return Math.max(-10.6,Math.min(10.6,h));};
+    const ix=VCX+cl(v.wH)*HS, iy=VCY+cl(v.vH)*HS;      // impact if centre is on target
+    const hx=VCX-cl(v.wH)*HS, hy=VCY-cl(v.vH)*HS;      // where the target sits when held
+    if(Math.abs(v.wH)>0.05||Math.abs(v.vH)>0.05){
+      s+='<line class="rl" x1="'+VCX+'" y1="'+VCY+'" x2="'+ix.toFixed(1)+'" y2="'+iy.toFixed(1)+'"/>';
+      s+='<circle class="rr" cx="'+hx.toFixed(1)+'" cy="'+hy.toFixed(1)+'" r="6"/>';
+    }
+    s+='<circle class="ri" cx="'+ix.toFixed(1)+'" cy="'+iy.toFixed(1)+'" r="5"/>';
+    if(v.off) s+='<text class="rx" x="'+ix.toFixed(1)+'" y="'+(iy+(v.vH>0?-10:16)).toFixed(1)+'" text-anchor="middle">off the reticle</text>';
+  }
+  s+='<rect class="rzb" x="'+(VW-110)+'" y="'+(VH-24)+'" width="104" height="18" rx="4"/>';
+  s+='<text class="rz" x="'+(VW-58)+'" y="'+(VH-11)+'" text-anchor="middle">1 hash = '+(v?v.moaPerHash.toFixed(2):"—")+' MOA</text>';
+  s+='<rect class="rzb" x="6" y="'+(VH-24)+'" width="150" height="18" rx="4"/>';
+  s+='<circle class="ri" cx="16" cy="'+(VH-15)+'" r="4"/><text class="rz" x="24" y="'+(VH-11)+'">impact if centred</text>';
+  s+='<circle class="rr" cx="118" cy="'+(VH-15)+'" r="4.5"/><text class="rz" x="126" y="'+(VH-11)+'">hold</text>';
+  s+='</svg>';
+  return s;
+}
+
+function renderRetView(L,r){
+  const host=$("rvRet"), read=$("rvRead"), sub=$("rvSub");
+  if(!r){ host.innerHTML=retViewSvg(null); read.textContent="No solution at this range."; sub.textContent=zoom+"×"; return; }
+  const moaPerHash=MAG_MAX/zoom;
+  const per=Number(L.dialMaxMoa)||38;
+  let vMoa, how;
+  if(rvMode==="hold"){
+    vMoa=r.moa; how="turret on zero";
+  }else if(r.dialYds==null){
+    vMoa=r.moa-per; how="dial at the "+per+" MOA stop";
+  }else{
+    const dy=Math.round(r.dialYds/5)*5;
+    const set=moaOn(dialCurve(L).tr,dy);
+    vMoa=r.moa-(set==null?r.moa:set); how="dial on "+dy;
+  }
+  const dir=(rvWind==="L")?1:-1;                 // bullet drifts downwind
+  const wMoa=r.windMoa*dir;
+  const vH=vMoa/moaPerHash, wH=wMoa/moaPerHash;
+  const tgtMoa=10/(1.047*yds/100);                 // a 10 in vital zone at this range
+  const off=Math.abs(vH)>10.5||Math.abs(wH)>10.5;
+  host.innerHTML=retViewSvg({wH:wH,vH:vH,moaPerHash:moaPerHash,tgtPx:tgtMoa/moaPerHash*HS,off:off});
+
+  const hf=function(h){return (Math.round(Math.abs(h)*10)/10).toFixed(1);};
+  const parts=[];
+  if(Math.abs(vH)>=0.05) parts.push("hold "+hf(vH)+(Math.abs(vH)===1?" hash ":" hashes ")+(vH>0?"high":"low"));
+  if(Math.abs(wH)>=0.05) parts.push(hf(wH)+(Math.abs(wH)===1?" hash ":" hashes ")+"into the wind ("+(rvWind==="L"?"left":"right")+")");
+  read.textContent = parts.length
+    ? parts.join("  ·  ")+(off?"  ·  past the last hash — zoom in or dial":"")
+    : "Centre on it — nothing to hold.";
+  sub.textContent=zoom+"× · "+how+" · "+yds+" yd";
+}
+
+(function buildZoom(){
+  const seg=$("zoomSeg");
+  ZOOMS.forEach(function(zv){
+    const b=document.createElement("button"); b.type="button"; b.textContent=zv+"×";
+    b.setAttribute("aria-pressed",String(zv===zoom));
+    b.addEventListener("click",function(){
+      zoom=zv; store.set("cr.zoom",zoom);
+      seg.querySelectorAll("button").forEach(function(q){q.setAttribute("aria-pressed",String(q===b));});
+      render();
+    });
+    seg.appendChild(b);
+  });
+  if(ZOOMS.indexOf(zoom)<0){ zoom=18; }
+  const setPair=function(a,b,on){ $(a).setAttribute("aria-pressed",String(on)); $(b).setAttribute("aria-pressed",String(!on)); };
+  setPair("rvDialed","rvHeld",rvMode!=="hold");
+  setPair("rvWindL","rvWindR",rvWind!=="R");
+  $("rvDialed").addEventListener("click",function(){rvMode="dial";store.set("cr.rvMode",rvMode);setPair("rvDialed","rvHeld",true);render();});
+  $("rvHeld").addEventListener("click",function(){rvMode="hold";store.set("cr.rvMode",rvMode);setPair("rvDialed","rvHeld",false);render();});
+  $("rvWindL").addEventListener("click",function(){rvWind="L";store.set("cr.rvWind",rvWind);setPair("rvWindL","rvWindR",true);render();});
+  $("rvWindR").addEventListener("click",function(){rvWind="R";store.set("cr.rvWind",rvWind);setPair("rvWindL","rvWindR",false);render();});
+})();
 
 render();
 $("btnWx").hidden=false;

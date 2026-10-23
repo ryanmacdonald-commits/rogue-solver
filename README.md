@@ -18,6 +18,7 @@ Installable to an iPhone home screen. Works with no signal.
 - Powder temperature sensitivity, humid-air density, station vs. sea-level pressure
 - Terminal velocity floor warning (below it the bullet may not expand)
 - Wind hold in clicks and MOA
+- Reticle view: the TMOA drawn at the zoom you're on (3-18x), with where this shot lands and where to hold — dialed or still on zero, wind from either side
 - Multiple loads, each with its own velocity, BC, zero and CDS cut
 
 ## Weather
