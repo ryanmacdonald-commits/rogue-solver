@@ -83,6 +83,9 @@ body{margin:0; background:var(--bg); color:var(--ink);
 .step{flex:0 0 auto; width:46px; height:46px; border-radius:10px; border:1px solid var(--rule-2);
   background:var(--card-2); color:var(--ink); font-size:22px; font-weight:600; cursor:pointer}
 .step:active{background:var(--rule)}
+.rsl{display:block; width:100%; margin:12px 0 0; accent-color:var(--accent); height:32px}
+.rslmarks{display:flex; justify-content:space-between; font-family:var(--mono); font-size:9px;
+  color:var(--ink-3); padding:0 2px; margin-top:-2px}
 
 /* result */
 .result{background:var(--card); border:1.5px solid var(--accent); border-radius:12px;
@@ -250,8 +253,12 @@ table.dt td.bad{color:var(--bad)}
 .rvtitle{font-size:14px; font-weight:700}
 .rvsub{font-family:var(--mono); font-size:10.5px; color:var(--ink-3); letter-spacing:.04em;
   text-align:right}
-.seg.zoom{margin-bottom:8px}
-.seg.zoom button{padding:9px 2px; font-size:12px; letter-spacing:0}
+.zoomrow{display:flex; align-items:center; gap:10px; margin-bottom:10px}
+.zoomrow label{font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3); flex:0 0 auto}
+.zoomrow output{font-family:var(--mono); font-size:16px; font-weight:700; flex:0 0 44px;
+  text-align:right; color:var(--accent)}
+.zoomrow input[type=range]{flex:1 1 auto; min-width:0; accent-color:var(--accent); height:28px; margin:0}
 .retwrap.rv{margin:0; padding:8px 4px 4px; background:var(--card-2)}
 .retwrap.rv svg{max-width:340px}
 .retwrap.rv .rh{stroke:var(--ink-2)}
@@ -306,6 +313,8 @@ table.dt td.bad{color:var(--bad)}
       <input id="yds" type="number" inputmode="numeric" value="400" min="25" max="1400" step="5">
       <button class="step" id="plus" type="button" aria-label="Up 25 yards">+</button>
     </div>
+    <input id="ydsSl" class="rsl" type="range" min="25" max="1400" step="5" aria-label="Range, yards">
+    <div class="rslmarks num"><span>25</span><span>500</span><span>1000</span><span>1400</span></div>
   </div>
 
   <div class="result">
@@ -341,7 +350,11 @@ table.dt td.bad{color:var(--bad)}
       <div class="rvtitle">Reticle view</div>
       <div class="rvsub" id="rvSub">—</div>
     </div>
-    <div class="seg zoom" id="zoomSeg" role="group" aria-label="Scope magnification"></div>
+    <div class="zoomrow">
+      <label for="zoomSl">Zoom</label>
+      <input id="zoomSl" type="range" min="3" max="18" step="1" aria-label="Scope magnification">
+      <output class="num" id="zoomVal" for="zoomSl">18×</output>
+    </div>
     <div class="seg" role="group" aria-label="Turret state" style="margin-bottom:8px">
       <button type="button" id="rvDialed" aria-pressed="true">Dialed</button>
       <button type="button" id="rvHeld" aria-pressed="false">Still on zero</button>
@@ -794,9 +807,10 @@ function render(){
   if(!$("sheetData").hidden) renderData();
   if(!$("sheetHold").hidden) renderHold();
 }
-function setYds(v){                       // clamp + write back: buttons, restore
+function setYds(v){                       // clamp + write back: buttons, slider, restore
   yds=Math.max(25,Math.min(1400,Math.round(v)));
   if($("yds").value!=String(yds)) $("yds").value=yds;
+  if($("ydsSl").value!=String(yds)) $("ydsSl").value=yds;
   store.set("cr.yds",yds); render();
 }
 function typeYds(raw){                    // while typing: never touch the field
@@ -806,7 +820,7 @@ function typeYds(raw){                    // while typing: never touch the field
   if(!isFinite(v)) return;
   // Only accept once the number is actually in range. Snapping "5" up to 25 on the
   // way to "500" rewrites the box and strands the cursor - that was the bug.
-  if(v>=25&&v<=1400){ yds=v; store.set("cr.yds",yds); render(); }
+  if(v>=25&&v<=1400){ yds=v; $("ydsSl").value=yds; store.set("cr.yds",yds); render(); }
 }
 
 /* ---------------- events ---------------- */
@@ -815,7 +829,8 @@ $("yds").addEventListener("blur",e=>{const v=parseInt(e.target.value,10); setYds
 $("plus").addEventListener("click",()=>setYds(yds+25));
 $("minus").addEventListener("click",()=>setYds(yds-25));
 $("wind").addEventListener("input",e=>{wind=Math.max(0,Number(e.target.value)||0);store.set("cr.wind",wind);render();});
-$("wind").value=wind; $("yds").value=yds;
+$("ydsSl").addEventListener("input",e=>{yds=Number(e.target.value); $("yds").value=yds; store.set("cr.yds",yds); render();});
+$("wind").value=wind; $("yds").value=yds; $("ydsSl").value=yds;
 
 function toggleSheet(el){ const wasHidden=el.hidden;
   ["sheetCond","sheetLoads","sheetWx","sheetData","sheetHold"].forEach(function(id){$(id).hidden=true;});
@@ -1344,7 +1359,7 @@ $("btnHold").addEventListener("click",function(){
    Second focal plane: the reticle is one fixed size and the world shrinks behind it,
    so a 1 MOA hash at 18x is worth 18/M MOA at M power. Everything here is drawn in
    HASHES, which is what you actually see through the glass. */
-const ZOOMS=[3,4,6,8,10,12,14,16,18], MAG_MAX=18;
+const MAG_MAX=18;
 const VW=340, VH=300, VCX=170, VCY=140, HS=12;   // px per hash, 10 hashes each way
 
 function retViewSvg(v){
@@ -1419,18 +1434,11 @@ function renderRetView(L,r){
 }
 
 (function buildZoom(){
-  const seg=$("zoomSeg");
-  ZOOMS.forEach(function(zv){
-    const b=document.createElement("button"); b.type="button"; b.textContent=zv+"×";
-    b.setAttribute("aria-pressed",String(zv===zoom));
-    b.addEventListener("click",function(){
-      zoom=zv; store.set("cr.zoom",zoom);
-      seg.querySelectorAll("button").forEach(function(q){q.setAttribute("aria-pressed",String(q===b));});
-      render();
-    });
-    seg.appendChild(b);
+  zoom=Math.max(3,Math.min(MAG_MAX,Math.round(Number(zoom))||MAG_MAX));
+  const sl=$("zoomSl"); sl.value=zoom; $("zoomVal").value=zoom+"×";
+  sl.addEventListener("input",function(){
+    zoom=Number(sl.value); $("zoomVal").value=zoom+"×"; store.set("cr.zoom",zoom); render();
   });
-  if(ZOOMS.indexOf(zoom)<0){ zoom=18; }
   const setPair=function(a,b,on){ $(a).setAttribute("aria-pressed",String(on)); $(b).setAttribute("aria-pressed",String(!on)); };
   setPair("rvDialed","rvHeld",rvMode!=="hold");
   setPair("rvWindL","rvWindR",rvWind!=="R");
