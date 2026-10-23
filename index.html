@@ -270,6 +270,22 @@ table.dt td.bad{color:var(--bad)}
 .retwrap.rv .rz{fill:var(--ink-3); font-family:var(--mono); font-size:9px}
 .retwrap.rv .rzb{fill:var(--card-2); opacity:.9}
 .retwrap.rv .rtv{fill:var(--ink-3); opacity:.13}
+.rose{display:flex; align-items:center; gap:12px; margin-top:10px}
+.rosebox{flex:0 0 150px}
+.rosebox svg{display:block; width:150px; height:150px; touch-action:none; cursor:pointer}
+.rosebox .rc{fill:var(--card-2); stroke:var(--rule-2); stroke-width:1.5}
+.rosebox .rt{stroke:var(--ink-3); stroke-width:1.5}
+.rosebox .rt.big{stroke:var(--ink-2); stroke-width:2.5}
+.rosebox .rlab{fill:var(--ink-3); font-family:var(--mono); font-size:8px; letter-spacing:.08em}
+.rosebox .rtg{fill:var(--accent); font-family:var(--mono); font-size:8px; font-weight:700; letter-spacing:.1em}
+.rosebox .rsh{fill:var(--ink-2)}
+.rosebox .rar{stroke:var(--accent); stroke-width:3; stroke-linecap:round; fill:none}
+.rosebox .rah{fill:var(--accent)}
+.rosebox .rkn{fill:var(--accent); stroke:var(--card); stroke-width:2.5}
+.rosetext{flex:1 1 auto; min-width:0}
+.rosetext .k{font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3)}
+.rosetext .v{font-size:24px; font-weight:700; color:var(--accent); line-height:1.15}
+.rosetext .k2{font-size:12px; color:var(--ink-3); line-height:1.35}
 </style>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
@@ -309,9 +325,7 @@ table.dt td.bad{color:var(--bad)}
   <div class="rangebox">
     <label for="yds">Range from your rangefinder — yards</label>
     <div class="rangerow">
-      <button class="step" id="minus" type="button" aria-label="Down 25 yards">−</button>
       <input id="yds" type="number" inputmode="numeric" value="400" min="25" max="1400" step="5">
-      <button class="step" id="plus" type="button" aria-label="Up 25 yards">+</button>
     </div>
     <input id="ydsSl" class="rsl" type="range" min="25" max="1400" step="5" aria-label="Range, yards">
     <div class="rslmarks num"><span>25</span><span>500</span><span>1000</span><span>1400</span></div>
@@ -333,7 +347,7 @@ table.dt td.bad{color:var(--bad)}
   <div class="windrow">
     <label for="wind">Wind mph</label>
     <input id="wind" type="number" inputmode="numeric" value="10" min="0" max="40" step="1">
-    <label style="flex:0 0 auto">full value</label>
+    <label style="flex:0 0 auto" id="windNote">full value</label>
   </div>
 
   <div class="strip">
@@ -359,12 +373,17 @@ table.dt td.bad{color:var(--bad)}
       <button type="button" id="rvDialed" aria-pressed="true">Dialed</button>
       <button type="button" id="rvHeld" aria-pressed="false">Still on zero</button>
     </div>
-    <div class="seg" role="group" aria-label="Wind direction">
-      <button type="button" id="rvWindL" aria-pressed="true">Wind from left</button>
-      <button type="button" id="rvWindR" aria-pressed="false">Wind from right</button>
-    </div>
     <div id="rvRet" class="retwrap rv"></div>
     <p class="chartread" id="rvRead" style="margin-top:8px"></p>
+    <div class="rose">
+      <div id="rvRose" class="rosebox"></div>
+      <div class="rosetext">
+        <div class="k">Wind from</div>
+        <div class="v num" id="roseDir">—</div>
+        <div class="k2" id="roseX">—</div>
+        <div class="k2" style="margin-top:6px">Drag around the ring. Target is at 12 o'clock.</div>
+      </div>
+    </div>
   </div>
 
   <!-- conditions sheet -->
@@ -747,7 +766,7 @@ let yds=store.get("cr.yds",400);
 let wind=store.get("cr.wind",10);
 let zoom=store.get("cr.zoom",18);           // reticle view: magnification he's on
 let rvMode=store.get("cr.rvMode","dial");    // "dial" = turret set, "hold" = still on zero
-let rvWind=store.get("cr.rvWind","L");       // which side the wind blows FROM
+let rvDeg=store.get("cr.rvDeg",270);         // where the wind blows FROM; 0 = from the target, 90 = from the right
 const active=()=>loads.find(l=>l.id===activeId)||loads[0];
 const $=id=>document.getElementById(id);
 
@@ -782,8 +801,11 @@ function render(){
     $("moa").textContent=`true range ${yds} yd  ·  ${r.moa.toFixed(2)} MOA  ·  ${r.clicks} clicks`
       + (Math.abs(off)>=5 ? `  ·  ${off>0?"+":""}${off} on the dial` : "  ·  dial matches range");
   }
-  $("windClicks").textContent=r.windClicks;
-  $("windMoa").textContent=r.windMoa.toFixed(2);
+  const xfrac=Math.abs(Math.sin(rvDeg*Math.PI/180));     // crosswind share from the rose
+  const wm=r.windMoa*xfrac;
+  $("windClicks").textContent=Math.round(wm/L.clickMoa);
+  $("windMoa").textContent=wm.toFixed(2);
+  $("windNote").textContent=xfrac>0.995?"full value":Math.round(xfrac*100)+"% value";
   $("vel").textContent=Math.round(r.vel);
   $("energy").textContent=Math.round(r.energy);
   $("tof").textContent=r.tof.toFixed(2)+"s";
@@ -826,8 +848,6 @@ function typeYds(raw){                    // while typing: never touch the field
 /* ---------------- events ---------------- */
 $("yds").addEventListener("input",e=>typeYds(e.target.value));
 $("yds").addEventListener("blur",e=>{const v=parseInt(e.target.value,10); setYds(isFinite(v)?v:yds);});
-$("plus").addEventListener("click",()=>setYds(yds+25));
-$("minus").addEventListener("click",()=>setYds(yds-25));
 $("wind").addEventListener("input",e=>{wind=Math.max(0,Number(e.target.value)||0);store.set("cr.wind",wind);render();});
 $("ydsSl").addEventListener("input",e=>{yds=Number(e.target.value); $("yds").value=yds; store.set("cr.yds",yds); render();});
 $("wind").value=wind; $("yds").value=yds; $("ydsSl").value=yds;
@@ -1416,8 +1436,8 @@ function renderRetView(L,r){
     const set=moaOn(dialCurve(L).tr,dy);
     vMoa=r.moa-(set==null?r.moa:set); how="dial on "+dy;
   }
-  const dir=(rvWind==="L")?1:-1;                 // bullet drifts downwind
-  const wMoa=r.windMoa*dir;
+  const rad=rvDeg*Math.PI/180, xf=Math.sin(rad);  // crosswind fraction, + = from the right
+  const wMoa=-r.windMoa*xf;                       // bullet drifts downwind
   const vH=vMoa/moaPerHash, wH=wMoa/moaPerHash;
   const tgtMoa=10/(1.047*yds/100);                 // a 10 in vital zone at this range
   const off=Math.abs(vH)>10.5||Math.abs(wH)>10.5;
@@ -1426,11 +1446,58 @@ function renderRetView(L,r){
   const hf=function(h){return (Math.round(Math.abs(h)*10)/10).toFixed(1);};
   const parts=[];
   if(Math.abs(vH)>=0.05) parts.push("hold "+hf(vH)+(Math.abs(vH)===1?" hash ":" hashes ")+(vH>0?"high":"low"));
-  if(Math.abs(wH)>=0.05) parts.push(hf(wH)+(Math.abs(wH)===1?" hash ":" hashes ")+"into the wind ("+(rvWind==="L"?"left":"right")+")");
+  if(Math.abs(wH)>=0.05) parts.push(hf(wH)+(Math.abs(wH)===1?" hash ":" hashes ")+"into the wind ("+(wH>0?"left":"right")+")");
   read.textContent = parts.length
     ? parts.join("  ·  ")+(off?"  ·  past the last hash — zoom in or dial":"")
     : "Centre on it — nothing to hold.";
   sub.textContent=zoom+"× · "+how+" · "+yds+" yd";
+  $("roseDir").textContent=clockOf(rvDeg)+" o'clock";
+  const xw=Math.abs(xf)*wind;
+  $("roseX").textContent=(Math.abs(xf)>0.995?"full value":Math.round(Math.abs(xf)*100)+"% value")
+    +" · "+(Math.round(xw*10)/10)+" of "+wind+" mph across";
+  renderRose();
+}
+function clockOf(deg){ const h=Math.round(deg/30)%12; return h===0?12:h; }
+
+/* wind rose: drag anywhere on the ring to set where the wind comes FROM */
+const RSZ=150, RC=75, RR=56;
+function renderRose(){
+  const host=$("rvRose"), rad=rvDeg*Math.PI/180;
+  const ex=RC+Math.sin(rad)*RR, ey=RC-Math.cos(rad)*RR;      // point on ring the wind comes from
+  const ix=RC+Math.sin(rad)*22, iy=RC-Math.cos(rad)*22;      // arrow head near the shooter
+  let s='<svg viewBox="0 0 '+RSZ+' '+RSZ+'" role="slider" aria-label="Wind direction" aria-valuemin="0" aria-valuemax="359" aria-valuenow="'+rvDeg+'">';
+  s+='<circle class="rc" cx="'+RC+'" cy="'+RC+'" r="'+(RR+12)+'"/>';
+  for(let i=0;i<24;i++){
+    const a=i*15*Math.PI/180, big=(i%6===0), r0=RR+(big?12:8), r1=RR+12;
+    s+='<line class="rt'+(big?' big':'')+'" x1="'+(RC+Math.sin(a)*r0).toFixed(1)+'" y1="'+(RC-Math.cos(a)*r0).toFixed(1)
+      +'" x2="'+(RC+Math.sin(a)*(r1-(big?10:5))).toFixed(1)+'" y2="'+(RC-Math.cos(a)*(r1-(big?10:5))).toFixed(1)+'"/>';
+  }
+  s+='<text class="rtg" x="'+RC+'" y="'+(RC-RR+22)+'" text-anchor="middle">TARGET</text>';
+  s+='<text class="rlab" x="'+(RC-34)+'" y="'+(RC+3)+'" text-anchor="middle">9</text>';
+  s+='<text class="rlab" x="'+(RC+34)+'" y="'+(RC+3)+'" text-anchor="middle">3</text>';
+  s+='<text class="rlab" x="'+RC+'" y="'+(RC+37)+'" text-anchor="middle">6</text>';
+  s+='<circle class="rsh" cx="'+RC+'" cy="'+RC+'" r="3"/>';
+  s+='<line class="rar" x1="'+ex.toFixed(1)+'" y1="'+ey.toFixed(1)+'" x2="'+ix.toFixed(1)+'" y2="'+iy.toFixed(1)+'"/>';
+  const hl=9, ang=Math.atan2(iy-ey,ix-ex);
+  s+='<polygon class="rah" points="'+(ix+Math.cos(ang)*4).toFixed(1)+','+(iy+Math.sin(ang)*4).toFixed(1)
+    +' '+(ix-Math.cos(ang)*hl+Math.sin(ang)*5).toFixed(1)+','+(iy-Math.sin(ang)*hl-Math.cos(ang)*5).toFixed(1)
+    +' '+(ix-Math.cos(ang)*hl-Math.sin(ang)*5).toFixed(1)+','+(iy-Math.sin(ang)*hl+Math.cos(ang)*5).toFixed(1)+'"/>';
+  s+='<circle class="rkn" cx="'+ex.toFixed(1)+'" cy="'+ey.toFixed(1)+'" r="8"/>';
+  s+='</svg>';
+  host.innerHTML=s;
+  const svg=host.firstChild;
+  const pick=function(ev){
+    const b=svg.getBoundingClientRect();
+    const x=(ev.clientX-b.left)/b.width*RSZ-RC, y=(ev.clientY-b.top)/b.height*RSZ-RC;
+    if(Math.hypot(x,y)<6) return;
+    let deg=Math.atan2(x,-y)*180/Math.PI; deg=((Math.round(deg/15)*15)%360+360)%360;
+    if(deg!==rvDeg){ rvDeg=deg; store.set("cr.rvDeg",rvDeg); render(); }
+  };
+  let down=false;
+  svg.addEventListener("pointerdown",function(ev){down=true; svg.setPointerCapture(ev.pointerId); pick(ev); ev.preventDefault();});
+  svg.addEventListener("pointermove",function(ev){ if(down) pick(ev); });
+  svg.addEventListener("pointerup",function(){down=false;});
+  svg.addEventListener("pointercancel",function(){down=false;});
 }
 
 (function buildZoom(){
@@ -1441,11 +1508,8 @@ function renderRetView(L,r){
   });
   const setPair=function(a,b,on){ $(a).setAttribute("aria-pressed",String(on)); $(b).setAttribute("aria-pressed",String(!on)); };
   setPair("rvDialed","rvHeld",rvMode!=="hold");
-  setPair("rvWindL","rvWindR",rvWind!=="R");
   $("rvDialed").addEventListener("click",function(){rvMode="dial";store.set("cr.rvMode",rvMode);setPair("rvDialed","rvHeld",true);render();});
   $("rvHeld").addEventListener("click",function(){rvMode="hold";store.set("cr.rvMode",rvMode);setPair("rvDialed","rvHeld",false);render();});
-  $("rvWindL").addEventListener("click",function(){rvWind="L";store.set("cr.rvWind",rvWind);setPair("rvWindL","rvWindR",true);render();});
-  $("rvWindR").addEventListener("click",function(){rvWind="R";store.set("cr.rvWind",rvWind);setPair("rvWindL","rvWindR",false);render();});
 })();
 
 render();
