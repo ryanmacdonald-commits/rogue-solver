@@ -272,7 +272,7 @@ table.dt td.bad{color:var(--bad)}
 .retwrap.rv .rtv{fill:var(--ink-3); opacity:.13}
 .rose{display:flex; align-items:center; gap:12px; margin-top:10px}
 .rosebox{flex:0 0 150px}
-.rosebox svg{display:block; width:150px; height:150px; touch-action:none; cursor:pointer}
+.rosebox svg{display:block; width:150px; height:150px; touch-action:none; cursor:pointer; user-select:none; -webkit-user-select:none}
 .rosebox .rc{fill:var(--card-2); stroke:var(--rule-2); stroke-width:1.5}
 .rosebox .rt{stroke:var(--ink-3); stroke-width:1.5}
 .rosebox .rt.big{stroke:var(--ink-2); stroke-width:2.5}
@@ -782,6 +782,7 @@ function render(){
   $("cAlt").textContent=cond.mode==="stn"?"—":cond.alt+"′";
 
   const r=solve(L,cond,yds,wind);
+  LAST_L=L; LAST_R=r;
   const flags=$("flags"); flags.textContent="";
   if(!r){ $("dialYds").textContent="—"; $("moa").textContent="out of range"; renderRetView(L,null); return; }
   if(r.dialYds==null){
@@ -801,11 +802,7 @@ function render(){
     $("moa").textContent=`true range ${yds} yd  ·  ${r.moa.toFixed(2)} MOA  ·  ${r.clicks} clicks`
       + (Math.abs(off)>=5 ? `  ·  ${off>0?"+":""}${off} on the dial` : "  ·  dial matches range");
   }
-  const xfrac=Math.abs(Math.sin(rvDeg*Math.PI/180));     // crosswind share from the rose
-  const wm=r.windMoa*xfrac;
-  $("windClicks").textContent=Math.round(wm/L.clickMoa);
-  $("windMoa").textContent=wm.toFixed(2);
-  $("windNote").textContent=xfrac>0.995?"full value":Math.round(xfrac*100)+"% value";
+  updateWind(L,r);
   $("vel").textContent=Math.round(r.vel);
   $("energy").textContent=Math.round(r.energy);
   $("tof").textContent=r.tof.toFixed(2)+"s";
@@ -828,6 +825,23 @@ function render(){
   renderRetView(L,r);
   if(!$("sheetData").hidden) renderData();
   if(!$("sheetHold").hidden) renderHold();
+}
+let LAST_L=null, LAST_R=null;
+function updateWind(L,r){
+  const xfrac=Math.abs(Math.sin(rvDeg*Math.PI/180));     // crosswind share from the rose
+  const wm=r.windMoa*xfrac;
+  $("windClicks").textContent=Math.round(wm/L.clickMoa);
+  $("windMoa").textContent=wm.toFixed(2);
+  $("windNote").textContent=xfrac>0.995?"full value":Math.round(xfrac*100)+"% value";
+}
+/* cheap refresh while the rose is being dragged: no solver, no sheets */
+let ROSE_RAF=0;
+function roseChanged(){
+  if(ROSE_RAF) return;
+  ROSE_RAF=requestAnimationFrame(function(){
+    ROSE_RAF=0;
+    if(LAST_R){ updateWind(LAST_L,LAST_R); renderRetView(LAST_L,LAST_R); } else render();
+  });
 }
 function setYds(v){                       // clamp + write back: buttons, slider, restore
   yds=Math.max(25,Math.min(1400,Math.round(v)));
@@ -1498,14 +1512,15 @@ function renderRose(){
       const x=(ev.clientX-b.left)/b.width*RSZ-RC, y=(ev.clientY-b.top)/b.height*RSZ-RC;
       if(Math.hypot(x,y)<6) return;
       let deg=Math.atan2(x,-y)*180/Math.PI; deg=((Math.round(deg/5)*5)%360+360)%360;
-      if(deg!==rvDeg){ rvDeg=deg; store.set("cr.rvDeg",rvDeg); render(); }
+      if(deg!==rvDeg){ rvDeg=deg; roseChanged(); }
     };
+    const done=function(){ if(down){ down=false; store.set("cr.rvDeg",rvDeg); render(); } };
     let down=false;
     svg.addEventListener("pointerdown",function(ev){down=true; try{svg.setPointerCapture(ev.pointerId);}catch(e){} pick(ev); ev.preventDefault();});
     svg.addEventListener("pointermove",function(ev){ if(down) pick(ev); });
-    svg.addEventListener("pointerup",function(){down=false;});
-    svg.addEventListener("pointercancel",function(){down=false;});
-    svg.addEventListener("lostpointercapture",function(){down=false;});
+    svg.addEventListener("pointerup",done);
+    svg.addEventListener("pointercancel",done);
+    svg.addEventListener("lostpointercapture",done);
   }
   const g=roseGeom();
   svg.setAttribute("aria-valuenow",rvDeg);
