@@ -1459,45 +1459,61 @@ function renderRetView(L,r){
 }
 function clockOf(deg){ const h=Math.round(deg/30)%12; return h===0?12:h; }
 
-/* wind rose: drag anywhere on the ring to set where the wind comes FROM */
+/* wind rose: drag anywhere on the ring to set where the wind comes FROM.
+   Built once; a drag only moves the knob and arrow, so pointer capture survives. */
 const RSZ=150, RC=75, RR=56;
-function renderRose(){
-  const host=$("rvRose"), rad=rvDeg*Math.PI/180;
+function roseGeom(){
+  const rad=rvDeg*Math.PI/180;
   const ex=RC+Math.sin(rad)*RR, ey=RC-Math.cos(rad)*RR;      // point on ring the wind comes from
   const ix=RC+Math.sin(rad)*22, iy=RC-Math.cos(rad)*22;      // arrow head near the shooter
-  let s='<svg viewBox="0 0 '+RSZ+' '+RSZ+'" role="slider" aria-label="Wind direction" aria-valuemin="0" aria-valuemax="359" aria-valuenow="'+rvDeg+'">';
-  s+='<circle class="rc" cx="'+RC+'" cy="'+RC+'" r="'+(RR+12)+'"/>';
-  for(let i=0;i<24;i++){
-    const a=i*15*Math.PI/180, big=(i%6===0), r0=RR+(big?12:8), r1=RR+12;
-    s+='<line class="rt'+(big?' big':'')+'" x1="'+(RC+Math.sin(a)*r0).toFixed(1)+'" y1="'+(RC-Math.cos(a)*r0).toFixed(1)
-      +'" x2="'+(RC+Math.sin(a)*(r1-(big?10:5))).toFixed(1)+'" y2="'+(RC-Math.cos(a)*(r1-(big?10:5))).toFixed(1)+'"/>';
-  }
-  s+='<text class="rtg" x="'+RC+'" y="'+(RC-RR+22)+'" text-anchor="middle">TARGET</text>';
-  s+='<text class="rlab" x="'+(RC-34)+'" y="'+(RC+3)+'" text-anchor="middle">9</text>';
-  s+='<text class="rlab" x="'+(RC+34)+'" y="'+(RC+3)+'" text-anchor="middle">3</text>';
-  s+='<text class="rlab" x="'+RC+'" y="'+(RC+37)+'" text-anchor="middle">6</text>';
-  s+='<circle class="rsh" cx="'+RC+'" cy="'+RC+'" r="3"/>';
-  s+='<line class="rar" x1="'+ex.toFixed(1)+'" y1="'+ey.toFixed(1)+'" x2="'+ix.toFixed(1)+'" y2="'+iy.toFixed(1)+'"/>';
   const hl=9, ang=Math.atan2(iy-ey,ix-ex);
-  s+='<polygon class="rah" points="'+(ix+Math.cos(ang)*4).toFixed(1)+','+(iy+Math.sin(ang)*4).toFixed(1)
+  const pts=(ix+Math.cos(ang)*4).toFixed(1)+','+(iy+Math.sin(ang)*4).toFixed(1)
     +' '+(ix-Math.cos(ang)*hl+Math.sin(ang)*5).toFixed(1)+','+(iy-Math.sin(ang)*hl-Math.cos(ang)*5).toFixed(1)
-    +' '+(ix-Math.cos(ang)*hl-Math.sin(ang)*5).toFixed(1)+','+(iy-Math.sin(ang)*hl+Math.cos(ang)*5).toFixed(1)+'"/>';
-  s+='<circle class="rkn" cx="'+ex.toFixed(1)+'" cy="'+ey.toFixed(1)+'" r="8"/>';
-  s+='</svg>';
-  host.innerHTML=s;
-  const svg=host.firstChild;
-  const pick=function(ev){
-    const b=svg.getBoundingClientRect();
-    const x=(ev.clientX-b.left)/b.width*RSZ-RC, y=(ev.clientY-b.top)/b.height*RSZ-RC;
-    if(Math.hypot(x,y)<6) return;
-    let deg=Math.atan2(x,-y)*180/Math.PI; deg=((Math.round(deg/15)*15)%360+360)%360;
-    if(deg!==rvDeg){ rvDeg=deg; store.set("cr.rvDeg",rvDeg); render(); }
-  };
-  let down=false;
-  svg.addEventListener("pointerdown",function(ev){down=true; svg.setPointerCapture(ev.pointerId); pick(ev); ev.preventDefault();});
-  svg.addEventListener("pointermove",function(ev){ if(down) pick(ev); });
-  svg.addEventListener("pointerup",function(){down=false;});
-  svg.addEventListener("pointercancel",function(){down=false;});
+    +' '+(ix-Math.cos(ang)*hl-Math.sin(ang)*5).toFixed(1)+','+(iy-Math.sin(ang)*hl+Math.cos(ang)*5).toFixed(1);
+  return {ex:ex,ey:ey,ix:ix,iy:iy,pts:pts};
+}
+function renderRose(){
+  const host=$("rvRose");
+  let svg=host.firstElementChild;
+  if(!svg){
+    let s='<svg viewBox="0 0 '+RSZ+' '+RSZ+'" role="slider" aria-label="Wind direction" aria-valuemin="0" aria-valuemax="359" aria-valuenow="'+rvDeg+'">';
+    s+='<circle class="rc" cx="'+RC+'" cy="'+RC+'" r="'+(RR+12)+'"/>';
+    for(let i=0;i<24;i++){
+      const a=i*15*Math.PI/180, big=(i%6===0), r0=RR+(big?12:8), r1=RR+12;
+      s+='<line class="rt'+(big?' big':'')+'" x1="'+(RC+Math.sin(a)*r0).toFixed(1)+'" y1="'+(RC-Math.cos(a)*r0).toFixed(1)
+        +'" x2="'+(RC+Math.sin(a)*(r1-(big?10:5))).toFixed(1)+'" y2="'+(RC-Math.cos(a)*(r1-(big?10:5))).toFixed(1)+'"/>';
+    }
+    s+='<text class="rtg" x="'+RC+'" y="'+(RC-RR+22)+'" text-anchor="middle">TARGET</text>';
+    s+='<text class="rlab" x="'+(RC-34)+'" y="'+(RC+3)+'" text-anchor="middle">9</text>';
+    s+='<text class="rlab" x="'+(RC+34)+'" y="'+(RC+3)+'" text-anchor="middle">3</text>';
+    s+='<text class="rlab" x="'+RC+'" y="'+(RC+37)+'" text-anchor="middle">6</text>';
+    s+='<circle class="rsh" cx="'+RC+'" cy="'+RC+'" r="3"/>';
+    s+='<line class="rar" id="roseArrow"/><polygon class="rah" id="roseHead"/>';
+    s+='<circle class="rkn" id="roseKnob" r="8"/>';
+    s+='</svg>';
+    host.innerHTML=s;
+    svg=host.firstElementChild;
+    const pick=function(ev){
+      const b=svg.getBoundingClientRect();
+      const x=(ev.clientX-b.left)/b.width*RSZ-RC, y=(ev.clientY-b.top)/b.height*RSZ-RC;
+      if(Math.hypot(x,y)<6) return;
+      let deg=Math.atan2(x,-y)*180/Math.PI; deg=((Math.round(deg/5)*5)%360+360)%360;
+      if(deg!==rvDeg){ rvDeg=deg; store.set("cr.rvDeg",rvDeg); render(); }
+    };
+    let down=false;
+    svg.addEventListener("pointerdown",function(ev){down=true; try{svg.setPointerCapture(ev.pointerId);}catch(e){} pick(ev); ev.preventDefault();});
+    svg.addEventListener("pointermove",function(ev){ if(down) pick(ev); });
+    svg.addEventListener("pointerup",function(){down=false;});
+    svg.addEventListener("pointercancel",function(){down=false;});
+    svg.addEventListener("lostpointercapture",function(){down=false;});
+  }
+  const g=roseGeom();
+  svg.setAttribute("aria-valuenow",rvDeg);
+  const ar=svg.querySelector("#roseArrow"), hd=svg.querySelector("#roseHead"), kn=svg.querySelector("#roseKnob");
+  ar.setAttribute("x1",g.ex.toFixed(1)); ar.setAttribute("y1",g.ey.toFixed(1));
+  ar.setAttribute("x2",g.ix.toFixed(1)); ar.setAttribute("y2",g.iy.toFixed(1));
+  hd.setAttribute("points",g.pts);
+  kn.setAttribute("cx",g.ex.toFixed(1)); kn.setAttribute("cy",g.ey.toFixed(1));
 }
 
 (function buildZoom(){
