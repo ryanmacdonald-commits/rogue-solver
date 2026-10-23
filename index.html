@@ -1407,7 +1407,10 @@ const VW=340, VH=300, VCX=170, VCY=140, HS=12;   // px per hash, 10 hashes each 
 function retViewSvg(v){
   // v: {wH, vH, aim, tgtPx, moaPerHash, off}  - wH/vH impact offset in hashes (+ = right / low)
   let s='<svg viewBox="0 0 '+VW+' '+VH+'" role="img" aria-label="Reticle at '+zoom+' power with the impact point marked">';
-  if(v&&v.pxPerIn>0) s+=targetSvg(v.pxPerIn);
+  if(v&&v.pxPerIn>0){                                    // target sits on the impact point
+    const cl=function(h){return Math.max(-10.6,Math.min(10.6,h));};
+    s+=targetSvg(v.pxPerIn, VCX+cl(v.wH)*HS, VCY+cl(v.vH)*HS);
+  }
   s+='<line class="rs" x1="'+VCX+'" y1="14" x2="'+VCX+'" y2="'+(VH-14)+'"/>';
   s+='<line class="rs" x1="14" y1="'+VCY+'" x2="'+(VW-14)+'" y2="'+VCY+'"/>';
   for(let i=1;i<=10;i++){
@@ -1425,19 +1428,15 @@ function retViewSvg(v){
   if(v){
     const cl=function(h){return Math.max(-10.6,Math.min(10.6,h));};
     const ix=VCX+cl(v.wH)*HS, iy=VCY+cl(v.vH)*HS;      // impact if centre is on target
-    const hx=VCX-cl(v.wH)*HS, hy=VCY-cl(v.vH)*HS;      // where the target sits when held
-    if(Math.abs(v.wH)>0.05||Math.abs(v.vH)>0.05){
+    if(Math.abs(v.wH)>0.05||Math.abs(v.vH)>0.05)
       s+='<line class="rl" x1="'+VCX+'" y1="'+VCY+'" x2="'+ix.toFixed(1)+'" y2="'+iy.toFixed(1)+'"/>';
-      s+='<circle class="rr" cx="'+hx.toFixed(1)+'" cy="'+hy.toFixed(1)+'" r="6"/>';
-    }
     s+='<circle class="ri" cx="'+ix.toFixed(1)+'" cy="'+iy.toFixed(1)+'" r="5"/>';
     if(v.off) s+='<text class="rx" x="'+ix.toFixed(1)+'" y="'+(iy+(v.vH>0?-10:16)).toFixed(1)+'" text-anchor="middle">off the reticle</text>';
   }
   s+='<rect class="rzb" x="'+(VW-110)+'" y="'+(VH-24)+'" width="104" height="18" rx="4"/>';
   s+='<text class="rz" x="'+(VW-58)+'" y="'+(VH-11)+'" text-anchor="middle">1 hash = '+(v?v.moaPerHash.toFixed(2):"—")+' MOA</text>';
-  s+='<rect class="rzb" x="6" y="'+(VH-24)+'" width="150" height="18" rx="4"/>';
-  s+='<circle class="ri" cx="16" cy="'+(VH-15)+'" r="4"/><text class="rz" x="24" y="'+(VH-11)+'">impact if centred</text>';
-  s+='<circle class="rr" cx="118" cy="'+(VH-15)+'" r="4.5"/><text class="rz" x="126" y="'+(VH-11)+'">hold</text>';
+  s+='<rect class="rzb" x="6" y="'+(VH-24)+'" width="128" height="18" rx="4"/>';
+  s+='<circle class="ri" cx="16" cy="'+(VH-15)+'" r="4"/><text class="rz" x="24" y="'+(VH-11)+'">put this on the vitals</text>';
   s+='</svg>';
   return s;
 }
@@ -1451,10 +1450,10 @@ const ELK_BODY="M98,16 C96,11 90,9 82,9 L58,10 C52,10 46,8 42,4 L38,-4 L34,-10 C
 const ELK_ANT="M32,-9 L36,-18 L44,-30 L55,-38 M34,-14 L28,-18 M38,-21 L33,-27 M43,-28 L41,-36 M49,-34 L50,-42 "+
   "M35,-8 L40,-15 L49,-25 L60,-32 M39,-13 L35,-19 M44,-20 L41,-27 M49,-25 L49,-33 M54,-29 L57,-37";
 const ELK_VITAL={x:60,y:28,r:7};     // 14 in heart-lung zone, behind the shoulder
-function targetSvg(k){
+function targetSvg(k,cx,cy){
   if(rvTgt==="circle")
-    return '<circle class="rtv" cx="'+VCX+'" cy="'+VCY+'" r="'+(6*k).toFixed(1)+'"/>';
-  const tx=VCX-ELK_VITAL.x*k, ty=VCY-ELK_VITAL.y*k;
+    return '<circle class="rtv" cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+(6*k).toFixed(1)+'"/>';
+  const tx=cx-ELK_VITAL.x*k, ty=cy-ELK_VITAL.y*k;
   return '<g transform="translate('+tx.toFixed(1)+' '+ty.toFixed(1)+') scale('+k.toFixed(4)+')">'
     +'<path class="relk" d="'+ELK_BODY+'"/><path class="rant" d="'+ELK_ANT+'"/>'
     +'<circle class="rvit" cx="'+ELK_VITAL.x+'" cy="'+ELK_VITAL.y+'" r="'+ELK_VITAL.r+'"/></g>';
