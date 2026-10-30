@@ -1,13 +1,14 @@
 /* Carbon Rogue Solver - offline service worker.
    Bump CACHE on every deploy so phones pick the new build up. */
-const CACHE = "rogue-solver-v20";
+const CACHE = "rogue-solver-v21";
 const SHELL = [
   "./",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png",
   "./maskable-512.png",
-  "./apple-touch-icon.png"
+  "./apple-touch-icon.png",
+  "./elk.webp"
 ];
 
 // Cache each file on its own. addAll() is all-or-nothing: one file 404s mid-deploy
