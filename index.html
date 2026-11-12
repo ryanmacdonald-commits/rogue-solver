@@ -287,6 +287,47 @@ table.dt td.bad{color:var(--bad)}
 .rosetext .k{font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3)}
 .rosetext .v{font-size:24px; font-weight:700; color:var(--accent); line-height:1.15}
 .rosetext .k2{font-size:12px; color:var(--ink-3); line-height:1.35}
+
+/* reloading notebook */
+.rl{background:var(--card); border:1px solid var(--rule); border-radius:12px;
+  margin-bottom:12px; box-shadow:var(--shadow); overflow:hidden}
+.rl > summary{list-style:none; cursor:pointer; padding:13px 14px; display:flex;
+  justify-content:space-between; align-items:baseline; gap:10px}
+.rl > summary::-webkit-details-marker,.rlsec > summary::-webkit-details-marker{display:none}
+.rl > summary .t{font-size:14px; font-weight:700}
+.rl > summary .s{font-family:var(--mono); font-size:10.5px; color:var(--ink-3); text-align:right}
+.rl > summary::after,.rlsec > summary::after{content:"+"; font-family:var(--mono); color:var(--ink-3);
+  font-size:16px; margin-left:6px; flex:0 0 auto}
+.rl > summary .s{margin-left:auto}
+.rl[open] > summary::after,.rlsec[open] > summary::after{content:"–"}
+.rlbody{padding:0 12px 12px}
+.rlsec{border:1px solid var(--rule); border-radius:10px; margin-top:8px; background:var(--card-2)}
+.rlsec > summary{list-style:none; cursor:pointer; padding:10px 12px; display:flex;
+  align-items:baseline; gap:8px; font-size:13.5px; font-weight:600}
+.rlsec > summary .tag{font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--accent); border:1px solid var(--accent); border-radius:999px;
+  padding:1px 7px; flex:0 0 auto}
+.rlsec > summary .d{margin-left:auto; font-family:var(--mono); font-size:10.5px; font-weight:400;
+  color:var(--ink-3); white-space:nowrap}
+.rlin{padding:0 12px 12px}
+.kv{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:13px; margin:0}
+.kv dt{color:var(--ink-3)}
+.kv dd{margin:0; font-family:var(--mono); text-align:right; font-variant-numeric:tabular-nums}
+.rlnote{font-size:12.5px; color:var(--ink-2); line-height:1.45; margin:8px 0 0}
+.rlnote li{margin-bottom:3px}
+.rlnote ul{margin:0; padding-left:18px}
+.rlh{font-family:var(--mono); font-size:9.5px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-3); margin:12px 0 6px; font-weight:600}
+.vstats{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--rule);
+  border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin:8px 0}
+.vstats > div{background:var(--card); padding:7px 4px; text-align:center}
+.vstats .k{font-family:var(--mono); font-size:8.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3)}
+.vstats .v{font-family:var(--mono); font-size:15px; font-weight:600; font-variant-numeric:tabular-nums}
+.shots{font-family:var(--mono); font-size:12px; color:var(--ink-2); line-height:1.6;
+  word-spacing:2px; font-variant-numeric:tabular-nums}
+.shots .miss{color:var(--ink-3)}
+.unsure{color:var(--warn); font-weight:700}
+table.dt tr.pick th,table.dt tr.pick td{color:var(--accent); font-weight:700}
 </style>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
@@ -540,6 +581,12 @@ table.dt td.bad{color:var(--bad)}
     </div>
     <button class="btn sec" type="button" id="btnDel" style="margin-top:10px">Delete this load</button>
   </div>
+
+  <!-- reloading notebook: transcribed from the paper log, built in renderReload() -->
+  <details class="rl" id="rlCard">
+    <summary><span class="t">Reloading</span><span class="s" id="rlSum">—</span></summary>
+    <div class="rlbody" id="rlBody"></div>
+  </details>
 
 </div>
 
@@ -1567,6 +1614,236 @@ function renderRose(){
   $("rvDialed").addEventListener("click",function(){rvMode="dial";store.set("cr.rvMode",rvMode);setPair("rvDialed","rvHeld",true);render();});
   $("rvHeld").addEventListener("click",function(){rvMode="hold";store.set("cr.rvMode",rvMode);setPair("rvDialed","rvHeld",false);render();});
 })();
+
+/* ---------------- reloading notebook ----------------
+   Transcribed from the paper log (Nov 2026 photos). Shots: a number, null for a
+   miss / no reading, or "2962?" for a figure that was overwritten or hard to read
+   (still counted, flagged in amber). Lengths are inches, charges grains N560. */
+const RL={
+  load:[
+    ["Bullet","160 gr Barnes LRX"],
+    ["Powder","Vihtavuori N560 — 65.40 gr"],
+    ["Brass","Peterson, necks turned"],
+    ["CBTO",'2.627″ <span style="color:var(--ink-3)">· 0.090″ jump</span>'],
+    ["Touch (LRX, this rifle)",'2.717″'],
+    ["Trim to",'2.280″'],
+    ["Expander",'0.282″'],
+    ["Shoulder bump",'0.001–0.002″'],
+    ["Neck tension",'≈0.001″'],
+  ],
+  prep:[
+    "Bushing die plus mandrel; 0.282″ expander.",
+    "Neck turner set with a 0.012″ feeler — walls were 0.016″ before turning.",
+    "Wet tumble: stainless pins, Lemishine and dish soap, 35–45 min.",
+  ],
+  specs:[
+    ["Max cartridge OAL (SAAMI)",'3.340″'],
+    ["Case length (SAAMI)",'2.280″'],
+    ["CBTO written on spec page",'2.6851″'],
+    ["LRX 160 touch, confirmed on Rogue",'2.717″'],
+  ],
+  brass:[
+    ["Headspace, new (420 comparator)",'1.899″'],
+    ["Headspace, fired",'1.901″ <span style="color:var(--ink-3)">· some 1.905″</span>'],
+    ["Neck OD, new unexpanded",'0.307″'],
+    ["Neck OD, loaded",'0.309″'],
+    ["Neck OD, fired",'0.315″'],
+    ["Mouth OD, fired",'0.312″'],
+    ["Neck wall before turn",'0.016″'],
+    ["Head expansion, fired / sized",'0.532″ / 0.531″'],
+    ["Case length after firing",'2.277–2.280″'],
+  ],
+  sessions:[
+    {tag:"1st", title:"First load", date:"Apr 17 2024",
+     kv:[["CBTO",'2.664″ · 0.021″ jump'],["Expander",'0.282″'],["Necks","turned (0.012″ feeler)"],
+         ["Headspace (420)",'<span class="unsure">1.905″?</span>'],["Base, fired / sized",'0.532″ / 0.531″']],
+     loaded:["20 × 64.0 gr","20 × 65.0 gr","8 × 65.5 → 69.0 gr by 0.5 (one each)"],
+     notes:["No velocities on this page."]},
+    {tag:"2nd", title:"66.0 gr test", date:"May 20 2024 · 96 rds",
+     kv:[["CBTO",'2.664″ · 0.020″ jump'],["Expander",'0.282″'],["Headspace fired (420)",'1.901″, some 1.905″'],
+         ["Case length after firing",'2.277–2.280″'],["Mouth OD",'0.312″'],["Base OD",'0.532″ — no change from 1st']],
+     strings:[{label:"66.0 gr — average only", avg:2875}],
+     notes:["Failed load test.","Chrono failed — out with Kyle."]},
+    {tag:"3rd", title:"160 gr CX", date:"",
+     kv:[["COAL",'3.388–3.390″'],["Rest loaded at",'3.390″ COAL']],
+     loaded:["10 each: 66.0 / 66.3 / 66.6 / 66.9 gr","8 × 66.3 gr — barrel foulers"],
+     strings:[{label:"66.0 gr N560 — average only", avg:3025}],
+     notes:["CX at 66.6 gr and up flattened primers and gave tough bolt lift."]},
+    {tag:"3rd cont", title:"LRX charge ladder", date:"",
+     ladder:[
+       {c:64.00, s:[2808,2841,2827]},
+       {c:64.50, s:[2845,2840,2876]},
+       {c:65.00, s:[2891,2889,2888]},
+       {c:65.50, s:[2889,2938,2922]},
+       {c:66.00, s:[2920,2937,2955], star:true},
+       {c:66.30, s:["2962?",2940,2973]},
+       {c:66.60, s:[2972,2990,2956]},
+     ],
+     strings:[{label:"65.40 gr — 4th-fire brass", s:[2947,2949,2951,2935,2960,2945,2922,2953,2955]}],
+     loaded:["3 × 64.0 gr from 4th-fire brass"],
+     notes:["2867 is also written above the 64.0 row — not counted.","66.0 gr is starred on the page.",
+            "Clean all the way to 66.6 gr — no pressure signs."]},
+    {tag:"4th", title:"Trim & seating depth", date:"",
+     kv:[["Before trim (as written)",'<span class="unsure">2.901–2.902″?</span>'],["Trimmed to",'2.280″'],
+         ["CBTO 2.664″ (0.021″ jump)",'COAL 3.49″'],["CBTO 2.600″ (0.085″ jump)",'COAL 3.422″']],
+     bullet:[["Overall length",'1.700″'],["Ogive / nose",'0.884″'],["Bearing surface",'0.680″'],
+             ["Boat tail",'0.179″'],["Boat tail base Ø",'<span class="unsure">0.250″?</span>']]},
+    {tag:"4th", title:"LRX at 0.090″ jump", date:"",
+     kv:[["CBTO",'2.595″'],["COAL",'<span class="unsure">3.415 / 3.420″?</span>']],
+     loaded:["2 × 64.50 gr — “2966–42” written beside","2 × 64.8 gr — “2997 / 31” written beside",
+             "2 × 65.10 gr","21 × 65.40 gr"],
+     notes:["CBTO 2.595″ is 0.090″ off the original 2.685″ touch; touch later re-measured at 2.717″."]},
+    {tag:"Batch", title:"65.40 gr × 33", date:"CBTO 2.627″",
+     strings:[{label:"String 1", s:[2932,2931,null,2937,2940,2921,2947,2943,2929,2921,2934,2931]},
+              {label:"String 2", s:[2933,2960,2949,2965,2958]}],
+     combine:true,
+     notes:["One no-reading in string 1 (dash on the page)."]},
+  ],
+  rifle:{
+    oz:[["Rifle, bare",97],["Scope",23],["Rings",3.9],["Bases",0.7],
+        ["Bipod",5],["Sling",5],["Ammo",3.3],["Muzzle brake",2.2]],
+    fit:[["Objective bell to barrel",'0.125″'],["Ring saddle",'0.600″'],["Base to scope centre",'1.125″']],
+    written:"7 lb 12 oz bare with scope · 8 lb 12 oz all up"
+  },
+  confirm:[
+    "1st: headspace digit overwritten — read as 1.905″.",
+    "3rd cont: 64.0 row is marked “×1” but has three speeds, with 2867 above. Counted 2808 / 2841 / 2827.",
+    "3rd cont: first 66.3 shot overwritten — read as 2962.",
+    "4th: “before” 2.901–2.902″ — if that’s case length before trim, it should read 2.29x.",
+    "4th: bullet segments add to 1.743″ against 1.700″ overall.",
+    "0.090″ jump page: COAL overwritten — 3.415 or 3.420″.",
+  ]
+};
+
+function shotVal(x){ if(x==null) return null; if(typeof x==="number") return x; const v=parseFloat(x); return isFinite(v)?v:null; }
+function vStats(arr){
+  const v=arr.map(shotVal).filter(function(x){return x!=null;});
+  if(!v.length) return null;
+  const n=v.length, avg=v.reduce(function(a,b){return a+b;},0)/n;
+  const es=Math.max.apply(null,v)-Math.min.apply(null,v);
+  const sd=n>1?Math.sqrt(v.reduce(function(a,b){return a+(b-avg)*(b-avg);},0)/(n-1)):0;
+  return {n:n,avg:avg,es:es,sd:sd};
+}
+function shotsHtml(arr){
+  return '<div class="shots">'+arr.map(function(x,i){
+    const v = x==null ? '<span class="miss">—</span>' : typeof x==="string" ? '<span class="unsure">'+x+'</span>' : x;
+    return '<span style="white-space:nowrap">'+v+(i<arr.length-1?' ·':'')+'</span>';
+  }).join(' ')+'</div>';
+}
+function statsHtml(st){
+  if(!st) return '';
+  return '<div class="vstats"><div><div class="k">Shots</div><div class="v">'+st.n+'</div></div>'
+    +'<div><div class="k">Avg</div><div class="v">'+Math.round(st.avg)+'</div></div>'
+    +'<div><div class="k">ES</div><div class="v">'+Math.round(st.es)+'</div></div>'
+    +'<div><div class="k">SD</div><div class="v">'+st.sd.toFixed(1)+'</div></div></div>';
+}
+function kvHtml(rows){
+  return '<dl class="kv">'+rows.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>';}).join('')+'</dl>';
+}
+function listHtml(items){ return '<div class="rlnote"><ul>'+items.map(function(i){return '<li>'+i+'</li>';}).join('')+'</ul></div>'; }
+function sec(tag,title,date,inner,open){
+  return '<details class="rlsec"'+(open?' open':'')+'><summary>'+(tag?'<span class="tag">'+tag+'</span>':'')
+    +'<span>'+title+'</span><span class="d">'+(date||'')+'</span></summary><div class="rlin">'+inner+'</div></details>';
+}
+
+function ladderSvg(rows){
+  const W=300,H=150,L=34,R=8,T=10,B=24;
+  const all=[]; rows.forEach(function(r){r.s.forEach(function(x){const v=shotVal(x); if(v!=null) all.push(v);});});
+  const c0=rows[0].c-0.15, c1=rows[rows.length-1].c+0.15;
+  const v0=Math.floor((Math.min.apply(null,all)-10)/25)*25, v1=Math.ceil((Math.max.apply(null,all)+10)/25)*25;
+  const X=function(c){return L+(c-c0)/(c1-c0)*(W-L-R);}, Y=function(v){return T+(v1-v)/(v1-v0)*(H-T-B);};
+  let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Velocity by charge">';
+  for(let v=v0; v<=v1; v+=50){
+    s+='<line class="gl" x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v).toFixed(1)+'" y2="'+Y(v).toFixed(1)+'"/>';
+    s+='<text class="ax" x="'+(L-4)+'" y="'+(Y(v)+3).toFixed(1)+'" text-anchor="end">'+v+'</text>';
+  }
+  rows.forEach(function(r){
+    s+='<text class="ax" x="'+X(r.c).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle">'+r.c.toFixed(1)+'</text>';
+    r.s.forEach(function(x){ const v=shotVal(x); if(v==null) return;
+      s+='<circle cx="'+X(r.c).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="2.6" fill="var(--ink-3)" opacity=".6"/>'; });
+  });
+  const pts=rows.map(function(r){const st=vStats(r.s); return X(r.c).toFixed(1)+','+Y(st.avg).toFixed(1);});
+  s+='<polyline class="ln" points="'+pts.join(' ')+'"/>';
+  rows.forEach(function(r){ const st=vStats(r.s);
+    s+='<circle class="cd" cx="'+X(r.c).toFixed(1)+'" cy="'+Y(st.avg).toFixed(1)+'" r="'+(r.star?4.5:3.2)+'"/>'; });
+  return s+'</svg>';
+}
+
+function ladderTable(rows){
+  let t='<div class="tablewrap" style="max-height:none"><table class="dt"><thead><tr>'
+    +'<th><span>Charge</span><em>gr</em></th><th><span>Avg</span><em>fps</em></th><th><span>ES</span></th>'
+    +'<th><span>SD</span></th><th><span>Gain</span><em>fps/0.1 gr</em></th></tr></thead><tbody>';
+  let prev=null;
+  rows.forEach(function(r){
+    const st=vStats(r.s);
+    const gain=prev?((st.avg-prev.avg)/((r.c-prev.c)*10)).toFixed(1):'—';
+    t+='<tr'+(r.star?' class="pick"':'')+'><th scope="row">'+r.c.toFixed(2)+(r.star?' ★':'')+'</th><td>'+Math.round(st.avg)+'</td><td>'
+      +Math.round(st.es)+'</td><td>'+st.sd.toFixed(1)+'</td><td>'+gain+'</td></tr>';
+    prev={avg:st.avg,c:r.c};
+  });
+  return t+'</tbody></table></div>';
+}
+
+function renderReload(){
+  const batch=RL.sessions[RL.sessions.length-1];
+  const bAll=[].concat.apply([],batch.strings.map(function(x){return x.s;}));
+  const bst=vStats(bAll);
+  $("rlSum").textContent="65.40 gr N560 · "+Math.round(bst.avg)+" fps avg";
+
+  let h='';
+  h+=sec("","Current load","",
+    kvHtml(RL.load)
+    +'<div class="rlh">Last batch — '+bst.n+' shots over the chrono</div>'+statsHtml(bst)
+    +'<div class="rlh">Brass prep</div>'+listHtml(RL.prep), true);
+
+  h+=sec("","Chamber & brass","",
+    '<div class="rlh" style="margin-top:0">7 PRC spec page</div>'+kvHtml(RL.specs)
+    +'<div class="rlh">Peterson brass, measured</div>'+kvHtml(RL.brass), false);
+
+  let log='';
+  RL.sessions.forEach(function(se){
+    let inner='';
+    if(se.kv) inner+=kvHtml(se.kv);
+    if(se.loaded&&!se.ladder) inner+='<div class="rlh">Loaded</div>'+listHtml(se.loaded);
+    if(se.ladder){
+      inner+='<div class="rlh">Velocity by charge — dots are shots, line is the average</div>'
+        +'<div class="cbody">'+ladderSvg(se.ladder)+'</div>'+ladderTable(se.ladder);
+      inner+='<div class="rlh">Every shot</div>'+se.ladder.map(function(r){
+        return '<div class="shots"><b>'+r.c.toFixed(2)+'</b> &nbsp;'+r.s.map(function(x){return typeof x==="string"?'<span class="unsure">'+x+'</span>':x;}).join(' · ')+'</div>';
+      }).join('');
+    }
+    if(se.strings) se.strings.forEach(function(str){
+      inner+='<div class="rlh">'+str.label+'</div>';
+      if(str.s){ inner+=shotsHtml(str.s)+statsHtml(vStats(str.s)); }
+      else inner+='<div class="vstats" style="grid-template-columns:1fr"><div><div class="k">Avg</div><div class="v">'+str.avg+' fps</div></div></div>';
+    });
+    if(se.loaded&&se.ladder) inner+='<div class="rlh">Loaded</div>'+listHtml(se.loaded);
+    if(se.combine){
+      inner+='<div class="rlh">Both strings together</div>'+statsHtml(bst);
+    }
+    if(se.bullet) inner+='<div class="rlh">Bullet, measured (LRX 160)</div>'+kvHtml(se.bullet);
+    if(se.notes) inner+='<div class="rlh">Notes</div>'+listHtml(se.notes);
+    log+=sec(se.tag,se.title,se.date,inner,false);
+  });
+  h+='<div class="rlh" style="margin-top:14px">Load development log</div>'+log;
+
+  const tot=function(list){return list.reduce(function(a,b){return a+b[1];},0);};
+  const lbOz=function(oz){const lb=Math.floor(oz/16); return lb+' lb '+(Math.round((oz-lb*16)*10)/10)+' oz';};
+  const bareOz=tot(RL.rifle.oz.slice(0,4)), allOz=tot(RL.rifle.oz);
+  h+='<div class="rlh" style="margin-top:14px">Rifle</div>'
+    +sec("","Weight & scope fit","",
+      kvHtml(RL.rifle.oz.map(function(r){return [r[0], r[1]>=16?lbOz(r[1]):r[1]+' oz'];}))
+      +'<div class="rlh">Totals</div>'+kvHtml([["Bare with scope",lbOz(bareOz)],["All up",lbOz(allOz)]])
+      +'<p class="rlnote">Written on the page: '+RL.rifle.written+'. The line items add up to match.</p>'
+      +'<div class="rlh">Scope fit</div>'+kvHtml(RL.rifle.fit), false);
+
+  h+=sec("","Readings to check","",
+    '<p class="rlnote" style="margin-top:0">Overwritten or unclear on the paper — shown in <span class="unsure">amber</span> above.</p>'
+    +listHtml(RL.confirm), false);
+
+  $("rlBody").innerHTML=h;
+}
+renderReload();
 
 render();
 $("btnWx").hidden=false;

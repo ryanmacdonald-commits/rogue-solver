@@ -20,6 +20,7 @@ Installable to an iPhone home screen. Works with no signal.
 - Wind hold in clicks and MOA
 - Reticle view: the TMOA drawn at the zoom you're on (3-18x), with where this shot lands and where to hold — dialed or still on zero, wind from either side
 - Multiple loads, each with its own velocity, BC, zero and CDS cut
+- Reloading notebook: current recipe, chamber and brass measurements, the full load-development log with charge-ladder velocities (avg / ES / SD), rifle weights and scope fit
 
 ## Weather
 
