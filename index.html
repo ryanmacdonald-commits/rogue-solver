@@ -1643,8 +1643,8 @@ const RL={
     ["LRX 160 touch, confirmed on Rogue",'2.717″'],
   ],
   brass:[
-    ["Headspace, new (420 comparator)",'1.899″'],
-    ["Headspace, fired",'1.901″ <span style="color:var(--ink-3)">· some 1.905″</span>'],
+    ["Headspace, new (420 bushing, shoulder centre)",'1.899″'],
+    ["Headspace, fired (420 bushing)",'1.901″ <span style="color:var(--ink-3)">· some 1.905″</span>'],
     ["Neck OD, new unexpanded",'0.307″'],
     ["Neck OD, loaded",'0.309″'],
     ["Neck OD, fired",'0.315″'],
@@ -1656,11 +1656,11 @@ const RL={
   sessions:[
     {tag:"1st", title:"First load", date:"Apr 17 2024",
      kv:[["CBTO",'2.664″ · 0.021″ jump'],["Expander",'0.282″'],["Necks","turned (0.012″ feeler)"],
-         ["Headspace (420)",'<span class="unsure">1.905″?</span>'],["Base, fired / sized",'0.532″ / 0.531″']],
+         ["Headspace (420 bushing, shoulder centre)",'1.905″'],["Base, fired / sized",'0.532″ / 0.531″']],
      loaded:["20 × 64.0 gr","20 × 65.0 gr","8 × 65.5 → 69.0 gr by 0.5 (one each)"],
      notes:["No velocities on this page."]},
     {tag:"2nd", title:"66.0 gr test", date:"May 20 2024 · 96 rds",
-     kv:[["CBTO",'2.664″ · 0.020″ jump'],["Expander",'0.282″'],["Headspace fired (420)",'1.901″, some 1.905″'],
+     kv:[["CBTO",'2.664″ · 0.020″ jump'],["Expander",'0.282″'],["Headspace fired (420 bushing)",'1.901″, some 1.905″'],
          ["Case length after firing",'2.277–2.280″'],["Mouth OD",'0.312″'],["Base OD",'0.532″ — no change from 1st']],
      strings:[{label:"66.0 gr — average only", avg:2875}],
      notes:["Failed load test.","Chrono failed — out with Kyle."]},
@@ -1676,7 +1676,7 @@ const RL={
        {c:65.00, s:[2891,2889,2888]},
        {c:65.50, s:[2889,2938,2922]},
        {c:66.00, s:[2920,2937,2955], star:true},
-       {c:66.30, s:["2962?",2940,2973]},
+       {c:66.30, s:[2962,2940,2973]},
        {c:66.60, s:[2972,2990,2956]},
      ],
      strings:[{label:"65.40 gr — 4th-fire brass", s:[2947,2949,2951,2935,2960,2945,2922,2953,2955]}],
@@ -1684,12 +1684,12 @@ const RL={
      notes:["2867 is also written above the 64.0 row — not counted.","66.0 gr is starred on the page.",
             "Clean all the way to 66.6 gr — no pressure signs."]},
     {tag:"4th", title:"Trim & seating depth", date:"",
-     kv:[["Before trim (as written)",'<span class="unsure">2.901–2.902″?</span>'],["Trimmed to",'2.280″'],
+     kv:[["CBT shoulder, before",'2.901–2.902″'],["Trimmed to",'2.280″'],
          ["CBTO 2.664″ (0.021″ jump)",'COAL 3.49″'],["CBTO 2.600″ (0.085″ jump)",'COAL 3.422″']],
      bullet:[["Overall length",'1.700″'],["Ogive / nose",'0.884″'],["Bearing surface",'0.680″'],
-             ["Boat tail",'0.179″'],["Boat tail base Ø",'<span class="unsure">0.250″?</span>']]},
+             ["Boat tail",'0.179″'],["Boat tail base Ø",'0.250″']]},
     {tag:"4th", title:"LRX at 0.090″ jump", date:"",
-     kv:[["CBTO",'2.595″'],["COAL",'<span class="unsure">3.415 / 3.420″?</span>']],
+     kv:[["CBTO",'2.595″'],["COAL",'3.415–3.420″']],
      loaded:["2 × 64.50 gr — “2966–42” written beside","2 × 64.8 gr — “2997 / 31” written beside",
              "2 × 65.10 gr","21 × 65.40 gr"],
      notes:["CBTO 2.595″ is 0.090″ off the original 2.685″ touch; touch later re-measured at 2.717″."]},
@@ -1704,15 +1704,7 @@ const RL={
         ["Bipod",5],["Sling",5],["Ammo",3.3],["Muzzle brake",2.2]],
     fit:[["Objective bell to barrel",'0.125″'],["Ring saddle",'0.600″'],["Base to scope centre",'1.125″']],
     written:"7 lb 12 oz bare with scope · 8 lb 12 oz all up"
-  },
-  confirm:[
-    "1st: headspace digit overwritten — read as 1.905″.",
-    "3rd cont: 64.0 row is marked “×1” but has three speeds, with 2867 above. Counted 2808 / 2841 / 2827.",
-    "3rd cont: first 66.3 shot overwritten — read as 2962.",
-    "4th: “before” 2.901–2.902″ — if that’s case length before trim, it should read 2.29x.",
-    "4th: bullet segments add to 1.743″ against 1.700″ overall.",
-    "0.090″ jump page: COAL overwritten — 3.415 or 3.420″.",
-  ]
+  }
 };
 
 function shotVal(x){ if(x==null) return null; if(typeof x==="number") return x; const v=parseFloat(x); return isFinite(v)?v:null; }
@@ -1836,10 +1828,6 @@ function renderReload(){
       +'<div class="rlh">Totals</div>'+kvHtml([["Bare with scope",lbOz(bareOz)],["All up",lbOz(allOz)]])
       +'<p class="rlnote">Written on the page: '+RL.rifle.written+'. The line items add up to match.</p>'
       +'<div class="rlh">Scope fit</div>'+kvHtml(RL.rifle.fit), false);
-
-  h+=sec("","Readings to check","",
-    '<p class="rlnote" style="margin-top:0">Overwritten or unclear on the paper — shown in <span class="unsure">amber</span> above.</p>'
-    +listHtml(RL.confirm), false);
 
   $("rlBody").innerHTML=h;
 }
