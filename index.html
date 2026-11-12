@@ -1700,10 +1700,10 @@ const RL={
      notes:["One no-reading in string 1 (dash on the page)."]},
   ],
   rifle:{
-    oz:[["Rifle, bare",97],["Scope",23],["Rings",3.9],["Bases",0.7],
-        ["Bipod",5],["Sling",5],["Ammo",3.3],["Muzzle brake",2.2]],
+    oz:[["Rifle, bare",97],["Scope — Leupold VX-6HD 3-18x50",22.9],["Rings",3.9],["Bases",0.7],
+        ["Bipod — Tricer RP, long legs",14.25],["Sling",5],["Ammo",3.3],["Muzzle brake — MDT Hunt Brake",1.7]],
     fit:[["Objective bell to barrel",'0.125″'],["Ring saddle",'0.600″'],["Base to scope centre",'1.125″']],
-    written:"7 lb 12 oz bare with scope · 8 lb 12 oz all up"
+    written:"Scope, bipod and brake are maker’s spec weights; the rest are off your scale. The paper totals (7 lb 12 / 8 lb 12 oz) were with the old bipod, 23 oz scope reading and 2.2 oz brake."
   }
 };
 
@@ -1821,12 +1821,13 @@ function renderReload(){
 
   const tot=function(list){return list.reduce(function(a,b){return a+b[1];},0);};
   const lbOz=function(oz){const lb=Math.floor(oz/16); return lb+' lb '+(Math.round((oz-lb*16)*10)/10)+' oz';};
+  const ozFmt=function(v){return (Math.round(v*10)/10)+' oz';};
   const bareOz=tot(RL.rifle.oz.slice(0,4)), allOz=tot(RL.rifle.oz);
   h+='<div class="rlh" style="margin-top:14px">Rifle</div>'
     +sec("","Weight & scope fit","",
-      kvHtml(RL.rifle.oz.map(function(r){return [r[0], r[1]>=16?lbOz(r[1]):r[1]+' oz'];}))
+      kvHtml(RL.rifle.oz.map(function(r){return [r[0], r[1]>=16?lbOz(r[1]):ozFmt(r[1])];}))
       +'<div class="rlh">Totals</div>'+kvHtml([["Bare with scope",lbOz(bareOz)],["All up",lbOz(allOz)]])
-      +'<p class="rlnote">Written on the page: '+RL.rifle.written+'. The line items add up to match.</p>'
+      +'<p class="rlnote">'+RL.rifle.written+'</p>'
       +'<div class="rlh">Scope fit</div>'+kvHtml(RL.rifle.fit), false);
 
   $("rlBody").innerHTML=h;
